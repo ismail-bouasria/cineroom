@@ -2,10 +2,11 @@ import type {
   ApiResponse,
   Booking,
   CreateBookingInput,
-  Room,
   UpdateBookingInput,
+  FORMULAS,
+  CONSUMABLES,
 } from "@/types";
-import { BookingSchema, RoomSchema } from "@/types";
+import { BookingSchema } from "@/types";
 import { z } from "zod";
 
 // ============================================
@@ -147,85 +148,216 @@ function getErrorMessage(status: number): string {
 }
 
 // ============================================
-// API ROOMS
+// DONNÉES MOCK RÉSERVATIONS
 // ============================================
 
-export const roomsApi = {
-  async getAll(): Promise<ApiResponse<Room[]>> {
-    return fetchWithErrorHandling("/rooms", {}, z.array(RoomSchema));
+const MOCK_BOOKINGS: Booking[] = [
+  {
+    id: "1",
+    userId: "user_1",
+    movieId: 1,
+    movieTitle: "Dune: Deuxième Partie",
+    moviePoster: "/8b8R8l88Qje9dn9OE8PY05Nxl1X.jpg",
+    formula: "cine-team",
+    date: "2026-02-05",
+    time: "19:00",
+    consumables: [
+      { consumableId: "menu-team", quantity: 1 },
+      { consumableId: "pop-caramel", quantity: 2 }
+    ],
+    totalPrice: 106,
+    status: "active",
+    createdAt: new Date().toISOString(),
   },
-
-  async getById(id: string): Promise<ApiResponse<Room>> {
-    return fetchWithErrorHandling(`/rooms/${id}`, {}, RoomSchema);
+  {
+    id: "2",
+    userId: "user_1",
+    movieId: 2,
+    movieTitle: "Oppenheimer",
+    moviePoster: "/8Gxv8gSFCU0XGDykEGv7zR1n2ua.jpg",
+    formula: "cine-duo",
+    date: "2026-02-10",
+    time: "20:00",
+    consumables: [
+      { consumableId: "menu-duo", quantity: 1 }
+    ],
+    totalPrice: 53,
+    status: "active",
+    createdAt: new Date().toISOString(),
   },
-
-  async create(data: Partial<Room>): Promise<ApiResponse<Room>> {
-    return fetchWithErrorHandling(
-      "/rooms",
-      {
-        method: "POST",
-        body: JSON.stringify(data),
-      },
-      RoomSchema
-    );
-  },
-
-  async update(id: string, data: Partial<Room>): Promise<ApiResponse<Room>> {
-    return fetchWithErrorHandling(
-      `/rooms/${id}`,
-      {
-        method: "PATCH",
-        body: JSON.stringify(data),
-      },
-      RoomSchema
-    );
-  },
-
-  async delete(id: string): Promise<ApiResponse<void>> {
-    return fetchWithErrorHandling(`/rooms/${id}`, { method: "DELETE" });
-  },
-};
+  {
+    id: "3",
+    userId: "user_1",
+    movieId: 5,
+    movieTitle: "Avatar: La Voie de l'Eau",
+    moviePoster: "/t6HIqrRAclMCA60NsSmeqe9RmNV.jpg",
+    formula: "cine-groupe",
+    date: "2026-01-15",
+    time: "18:00",
+    totalPrice: 100,
+    status: "passee",
+    createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+  }
+];
 
 // ============================================
 // API BOOKINGS
 // ============================================
 
 export const bookingsApi = {
-  async getAll(): Promise<ApiResponse<Booking[]>> {
-    return fetchWithErrorHandling("/bookings", {}, z.array(BookingSchema));
+  /**
+   * Récupérer toutes les réservations de l'utilisateur
+   */
+  getAll: async (): Promise<ApiResponse<Booking[]>> => {
+    // Simulation API avec données mock
+    await simulateDelay();
+    return createSuccessState(MOCK_BOOKINGS);
   },
 
-  async getById(id: string): Promise<ApiResponse<Booking>> {
-    return fetchWithErrorHandling(`/bookings/${id}`, {}, BookingSchema);
+  /**
+   * Récupérer une réservation par ID
+   */
+  getById: async (id: string): Promise<ApiResponse<Booking>> => {
+    await simulateDelay();
+    const booking = MOCK_BOOKINGS.find(b => b.id === id);
+    if (!booking) {
+      return createErrorState(ERROR_MESSAGES.notFound);
+    }
+    return createSuccessState(booking);
   },
 
-  async create(data: CreateBookingInput): Promise<ApiResponse<Booking>> {
-    return fetchWithErrorHandling(
-      "/bookings",
-      {
-        method: "POST",
-        body: JSON.stringify(data),
-      },
-      BookingSchema
-    );
+  /**
+   * Créer une nouvelle réservation
+   */
+  create: async (input: CreateBookingInput): Promise<ApiResponse<Booking>> => {
+    await simulateDelay();
+    
+    // Calculer le prix total
+    const formula = (await import("@/types")).FORMULAS.find(f => f.id === input.formula);
+    let totalPrice = formula?.basePrice || 0;
+    
+    if (input.consumables) {
+      const consumables = (await import("@/types")).CONSUMABLES;
+      for (const item of input.consumables) {
+        const consumable = consumables.find(c => c.id === item.consumableId);
+        if (consumable) {
+          totalPrice += consumable.price * item.quantity;
+        }
+      }
+    }
+
+    const newBooking: Booking = {
+      id: String(Date.now()),
+      userId: "current_user",
+      movieId: input.movieId,
+      movieTitle: input.movieTitle,
+      moviePoster: input.moviePoster,
+      formula: input.formula,
+      date: input.date,
+      time: input.time,
+      consumables: input.consumables,
+      totalPrice,
+      status: "active",
+      createdAt: new Date().toISOString(),
+    };
+
+    MOCK_BOOKINGS.push(newBooking);
+    return createSuccessState(newBooking);
   },
 
-  async update(id: string, data: UpdateBookingInput): Promise<ApiResponse<Booking>> {
-    return fetchWithErrorHandling(
-      `/bookings/${id}`,
-      {
-        method: "PATCH",
-        body: JSON.stringify(data),
-      },
-      BookingSchema
-    );
+  /**
+   * Modifier une réservation
+   */
+  update: async (id: string, input: UpdateBookingInput): Promise<ApiResponse<Booking>> => {
+    await simulateDelay();
+    const index = MOCK_BOOKINGS.findIndex(b => b.id === id);
+    if (index === -1) {
+      return createErrorState(ERROR_MESSAGES.notFound);
+    }
+
+    const updatedBooking: Booking = {
+      ...MOCK_BOOKINGS[index],
+      ...input,
+      status: input.status || "modifiee",
+      updatedAt: new Date().toISOString(),
+    };
+
+    MOCK_BOOKINGS[index] = updatedBooking;
+    return createSuccessState(updatedBooking);
   },
 
-  async cancel(id: string): Promise<ApiResponse<Booking>> {
-    return fetchWithErrorHandling(
-      `/bookings/${id}/cancel`,
-      { method: "POST" },
-      BookingSchema
-    );
+  /**
+   * Annuler une réservation
+   */
+  cancel: async (id: string): Promise<ApiResponse<Booking>> => {
+    await simulateDelay();
+    const index = MOCK_BOOKINGS.findIndex(b => b.id === id);
+    if (index === -1) {
+      return createErrorState(ERROR_MESSAGES.notFound);
+    }
+
+    MOCK_BOOKINGS[index] = {
+      ...MOCK_BOOKINGS[index],
+      status: "annulee",
+      updatedAt: new Date().toISOString(),
+    };
+
+    return createSuccessState(MOCK_BOOKINGS[index]);
+  },
+
+  /**
+   * Supprimer une réservation
+   */
+  delete: async (id: string): Promise<ApiResponse<{ success: boolean }>> => {
+    await simulateDelay();
+    const index = MOCK_BOOKINGS.findIndex(b => b.id === id);
+    if (index === -1) {
+      return createErrorState(ERROR_MESSAGES.notFound);
+    }
+
+    MOCK_BOOKINGS.splice(index, 1);
+    return createSuccessState({ success: true });
   },
 };
+
+// ============================================
+// API STATS (pour admin)
+// ============================================
+
+export interface DashboardStats {
+  totalBookings: number;
+  activeBookings: number;
+  cancelledBookings: number;
+  totalRevenue: number;
+  popularFormulas: { formula: string; count: number }[];
+  recentBookings: Booking[];
+}
+
+export const statsApi = {
+  getDashboard: async (): Promise<ApiResponse<DashboardStats>> => {
+    await simulateDelay();
+    
+    const stats: DashboardStats = {
+      totalBookings: MOCK_BOOKINGS.length,
+      activeBookings: MOCK_BOOKINGS.filter(b => b.status === "active").length,
+      cancelledBookings: MOCK_BOOKINGS.filter(b => b.status === "annulee").length,
+      totalRevenue: MOCK_BOOKINGS.reduce((sum, b) => sum + b.totalPrice, 0),
+      popularFormulas: [
+        { formula: "Ciné'Team", count: 45 },
+        { formula: "Ciné'Duo", count: 32 },
+        { formula: "Ciné'Groupe", count: 18 },
+      ],
+      recentBookings: MOCK_BOOKINGS.slice(0, 5),
+    };
+
+    return createSuccessState(stats);
+  },
+};
+
+// ============================================
+// HELPER
+// ============================================
+
+function simulateDelay(ms = 500): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
