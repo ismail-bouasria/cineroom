@@ -1,37 +1,24 @@
-"use client";
-
-import Link from "next/link";
-import { Button } from "@/components/ui";
-import { ShieldX, Home, ArrowLeft } from "lucide-react";
+import Link from 'next/link';
+import { Ban } from 'lucide-react';
 
 export default function ForbiddenPage() {
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
-      <div className="text-center max-w-md">
-        <div className="mb-8">
-          <div className="inline-flex items-center justify-center w-24 h-24 bg-rose-900/30 rounded-full mb-4">
-            <ShieldX className="w-12 h-12 text-rose-500" />
-          </div>
-          <h1 className="text-8xl font-bold text-slate-700">403</h1>
+    <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center px-4">
+      <div className="text-center">
+        <div className="w-24 h-24 bg-orange-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+          <Ban className="w-12 h-12 text-orange-400" />
         </div>
-
-        <h2 className="text-2xl font-bold text-white mb-2">Accès refusé</h2>
-        <p className="text-slate-400 mb-8">
-          Vous n&apos;avez pas les droits nécessaires pour accéder à cette ressource.
+        <h1 className="text-4xl font-black text-white mb-4">403</h1>
+        <h2 className="text-xl text-gray-400 mb-6">Accès refusé</h2>
+        <p className="text-gray-500 mb-8 max-w-md">
+          Vous n&apos;avez pas les droits nécessaires pour accéder à cette page.
         </p>
-
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Link href="/dashboard">
-            <Button leftIcon={<Home className="w-5 h-5" />}>Mon Dashboard</Button>
-          </Link>
-          <Button
-            variant="outline"
-            leftIcon={<ArrowLeft className="w-5 h-5" />}
-            onClick={() => window.history.back()}
-          >
-            Page précédente
-          </Button>
-        </div>
+        <Link
+          href="/dashboard"
+          className="inline-flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-red-500 to-orange-500 rounded-full font-medium text-white"
+        >
+          Retour au dashboard
+        </Link>
       </div>
     </div>
   );
