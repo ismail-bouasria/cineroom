@@ -13,7 +13,7 @@ const rooms = [
 ];
 
 export default function LandingPage() {
-  const [selectedMovie, setSelectedMovie] = useState(null);
+  const [selectedMovie, setSelectedMovie] = useState<string>("");
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("Tous");
   const [filteredMovies, setFilteredMovies] = useState(movies);
