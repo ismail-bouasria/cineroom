@@ -1,33 +1,24 @@
-import Link from "next/link";
-import { Button } from "@/components/ui";
-import { Lock, Home, LogIn } from "lucide-react";
+import Link from 'next/link';
+import { ShieldX } from 'lucide-react';
 
 export default function UnauthorizedPage() {
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
-      <div className="text-center max-w-md">
-        <div className="mb-8">
-          <div className="inline-flex items-center justify-center w-24 h-24 bg-amber-900/30 rounded-full mb-4">
-            <Lock className="w-12 h-12 text-amber-500" />
-          </div>
-          <h1 className="text-8xl font-bold text-slate-700">401</h1>
+    <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center px-4">
+      <div className="text-center">
+        <div className="w-24 h-24 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+          <ShieldX className="w-12 h-12 text-red-400" />
         </div>
-
-        <h2 className="text-2xl font-bold text-white mb-2">Authentification requise</h2>
-        <p className="text-slate-400 mb-8">
+        <h1 className="text-4xl font-black text-white mb-4">401</h1>
+        <h2 className="text-xl text-gray-400 mb-6">Non authentifié</h2>
+        <p className="text-gray-500 mb-8 max-w-md">
           Vous devez être connecté pour accéder à cette page.
         </p>
-
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Link href="/login">
-            <Button leftIcon={<LogIn className="w-5 h-5" />}>Se connecter</Button>
-          </Link>
-          <Link href="/">
-            <Button variant="outline" leftIcon={<Home className="w-5 h-5" />}>
-              Retour à l&apos;accueil
-            </Button>
-          </Link>
-        </div>
+        <Link
+          href="/"
+          className="inline-flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-red-500 to-orange-500 rounded-full font-medium text-white"
+        >
+          Se connecter
+        </Link>
       </div>
     </div>
   );
