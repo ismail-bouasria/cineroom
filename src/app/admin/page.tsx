@@ -1,310 +1,363 @@
-"use client";
+'use client';
 
-import { useEffect } from "react";
-import Link from "next/link";
-import { DashboardLayout } from "@/components/layout";
-import { Card, CardHeader, CardContent, Button, Spinner, Alert, Badge } from "@/components/ui";
-import { useApiState } from "@/lib/hooks";
-import { bookingsApi, roomsApi, isLoading, hasError, hasData } from "@/lib/api-client";
-import { Booking, Room } from "@/types";
-import { formatCurrency, formatDate, getStatusLabel } from "@/lib/utils";
-import {
-  Users,
-  Film,
-  Calendar,
-  TrendingUp,
-  ArrowRight,
-  DollarSign,
-  Activity,
-  Clock,
-  Settings,
-  FileText,
-} from "lucide-react";
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
+import { 
+  LayoutDashboard, Ticket, Film, Users, TrendingUp, 
+  Calendar, ArrowUp, ArrowDown, Eye, Check, X, Clock 
+} from 'lucide-react';
+import { Booking, FORMULAS, ReservationStatus } from '@/types';
+import { useApiState } from '@/lib/hooks';
+import { statsApi, bookingsApi, DashboardStats, isLoading, hasData, hasError } from '@/lib/api-client';
+import { getImageUrl } from '@/lib/tmdb';
+
+// ============================================
+// COMPOSANTS
+// ============================================
+
+const StatCard = ({
+  title,
+  value,
+  change,
+  icon,
+  color
+}: {
+  title: string;
+  value: string | number;
+  change?: { value: number; label: string };
+  icon: React.ReactNode;
+  color: string;
+}) => (
+  <div className="bg-white/5 rounded-2xl p-6 hover:bg-white/10 transition-colors">
+    <div className="flex items-start justify-between">
+      <div className={`p-3 rounded-xl ${color}`}>
+        {icon}
+      </div>
+      {change && (
+        <div className={`flex items-center gap-1 text-sm ${change.value >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+          {change.value >= 0 ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />}
+          {Math.abs(change.value)}%
+        </div>
+      )}
+    </div>
+    <p className="text-3xl font-bold text-white mt-4">{value}</p>
+    <p className="text-gray-400 text-sm mt-1">{title}</p>
+  </div>
+);
+
+const statusColors: Record<ReservationStatus, string> = {
+  active: 'bg-green-500/20 text-green-400',
+  modifiee: 'bg-yellow-500/20 text-yellow-400',
+  annulee: 'bg-red-500/20 text-red-400',
+  passee: 'bg-gray-500/20 text-gray-400'
+};
+
+const BookingRow = ({
+  booking,
+  onConfirm,
+  onCancel
+}: {
+  booking: Booking;
+  onConfirm: (id: string) => void;
+  onCancel: (id: string) => void;
+}) => {
+  const formula = FORMULAS.find(f => f.id === booking.formula);
+  
+  return (
+    <tr className="border-b border-white/5 hover:bg-white/5">
+      <td className="py-4 px-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-14 relative rounded overflow-hidden flex-shrink-0">
+            <Image
+              src={getImageUrl(booking.moviePoster ?? null, 'w200')}
+              alt={booking.movieTitle ?? 'Film'}
+              fill
+              className="object-cover"
+            />
+          </div>
+          <div>
+            <p className="font-medium text-white">{booking.movieTitle ?? 'Film'}</p>
+            <p className="text-sm text-gray-500">#{booking.id}</p>
+          </div>
+        </div>
+      </td>
+      <td className="py-4 px-4">
+        <span className={`px-3 py-1 rounded-full text-sm font-medium bg-gradient-to-r ${formula?.color}`}>
+          {formula?.name}
+        </span>
+      </td>
+      <td className="py-4 px-4 text-gray-400">
+        <div className="flex items-center gap-2">
+          <Calendar className="w-4 h-4" />
+          {new Date(booking.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+        </div>
+        <div className="flex items-center gap-2 mt-1 text-sm">
+          <Clock className="w-3 h-3" />
+          {booking.time}
+        </div>
+      </td>
+      <td className="py-4 px-4">
+        <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${statusColors[booking.status]}`}>
+          {booking.status}
+        </span>
+      </td>
+      <td className="py-4 px-4 text-white font-medium">{booking.totalPrice}€</td>
+      <td className="py-4 px-4">
+        <div className="flex items-center gap-2">
+          <Link
+            href={`/bookings/${booking.id}`}
+            className="p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
+            title="Voir"
+          >
+            <Eye className="w-4 h-4" />
+          </Link>
+          {booking.status === 'active' && (
+            <>
+              <button
+                onClick={() => onConfirm(booking.id)}
+                className="p-2 bg-green-500/20 hover:bg-green-500/30 text-green-400 rounded-lg transition-colors"
+                title="Confirmer"
+              >
+                <Check className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => onCancel(booking.id)}
+                className="p-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg transition-colors"
+                title="Annuler"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </>
+          )}
+        </div>
+      </td>
+    </tr>
+  );
+};
+
+// ============================================
+// PAGE ADMIN
+// ============================================
 
 export default function AdminDashboardPage() {
+  const [statsState, setStatsState] = useApiState<DashboardStats>();
   const [bookingsState, setBookingsState] = useApiState<Booking[]>();
-  const [roomsState, setRoomsState] = useApiState<Room[]>();
+  const [activeTab, setActiveTab] = useState<'overview' | 'bookings'>('overview');
 
   useEffect(() => {
     const fetchData = async () => {
-      const [bookingsResult, roomsResult] = await Promise.all([
-        bookingsApi.getAll(),
-        roomsApi.getAll(),
+      const [stats, bookings] = await Promise.all([
+        statsApi.getDashboard(),
+        bookingsApi.getAll()
       ]);
-      setBookingsState(bookingsResult);
-      setRoomsState(roomsResult);
+      setStatsState(stats);
+      setBookingsState(bookings);
     };
     fetchData();
-  }, [setBookingsState, setRoomsState]);
+  }, [setStatsState, setBookingsState]);
 
-  const stats = {
-    totalBookings: hasData(bookingsState) ? bookingsState.data.length : 0,
-    totalRooms: hasData(roomsState) ? roomsState.data.length : 0,
-    pendingBookings: hasData(bookingsState)
-      ? bookingsState.data.filter((b) => b.status === "pending").length
-      : 0,
-    revenue: hasData(bookingsState)
-      ? bookingsState.data
-          .filter((b) => b.status === "confirmed" || b.status === "completed")
-          .reduce((sum, b) => sum + b.totalPrice, 0)
-      : 0,
+  const handleConfirm = async (id: string) => {
+    // Dans une vraie app, appeler l'API pour confirmer
+    console.log('Confirmer:', id);
   };
 
-  const recentBookings = hasData(bookingsState)
-    ? [...bookingsState.data]
-        .sort(
-          (a, b) =>
-            new Date(b.createdAt || b.date).getTime() -
-            new Date(a.createdAt || a.date).getTime()
-        )
-        .slice(0, 5)
-    : [];
+  const handleCancel = async (id: string) => {
+    if (confirm('Annuler cette réservation ?')) {
+      await bookingsApi.cancel(id);
+      const result = await bookingsApi.getAll();
+      setBookingsState(result);
+    }
+  };
+
+  const stats = hasData(statsState) ? statsState.data : null;
+  const bookings = hasData(bookingsState) ? bookingsState.data : [];
 
   return (
-    <DashboardLayout>
-      <div className="space-y-8">
+    <div className="min-h-screen bg-[#0a0a0a] text-white">
+      {/* Sidebar */}
+      <aside className="fixed left-0 top-0 bottom-0 w-64 bg-white/5 border-r border-white/10 p-6 hidden lg:block">
+        <Link href="/" className="flex items-center gap-2 mb-10">
+          <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-orange-500 rounded-lg flex items-center justify-center">
+            <Film className="w-6 h-6" />
+          </div>
+          <span className="text-xl font-black">
+            Cine<span className="text-red-500">Room</span>
+          </span>
+        </Link>
+
+        <nav className="space-y-2">
+          <button
+            onClick={() => setActiveTab('overview')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${
+              activeTab === 'overview' ? 'bg-gradient-to-r from-red-500 to-orange-500' : 'hover:bg-white/10'
+            }`}
+          >
+            <LayoutDashboard className="w-5 h-5" />
+            Vue d&apos;ensemble
+          </button>
+          <button
+            onClick={() => setActiveTab('bookings')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${
+              activeTab === 'bookings' ? 'bg-gradient-to-r from-red-500 to-orange-500' : 'hover:bg-white/10'
+            }`}
+          >
+            <Ticket className="w-5 h-5" />
+            Réservations
+          </button>
+          <Link
+            href="/catalogue"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/10 transition-colors"
+          >
+            <Film className="w-5 h-5" />
+            Catalogue
+          </Link>
+        </nav>
+
+        <div className="absolute bottom-6 left-6 right-6">
+          <Link
+            href="/dashboard"
+            className="block text-center text-sm text-gray-400 hover:text-white transition-colors"
+          >
+            ← Retour utilisateur
+          </Link>
+        </div>
+      </aside>
+
+      {/* Main content */}
+      <main className="lg:ml-64 p-6 md:p-8">
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-white">Administration</h1>
-            <p className="text-slate-400 mt-1">
-              Vue d&apos;ensemble de votre activité CineRoom
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Link href="/admin/rooms">
-              <Button variant="outline" leftIcon={<Film className="w-5 h-5" />}>
-                Gérer les salles
-              </Button>
-            </Link>
-            <Link href="/admin/bookings">
-              <Button leftIcon={<Calendar className="w-5 h-5" />}>
-                Voir les réservations
-              </Button>
-            </Link>
-          </div>
+        <div className="mb-8">
+          <h1 className="text-3xl font-black">Administration</h1>
+          <p className="text-gray-400 mt-1">Tableau de bord CineRoom</p>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Card hoverable>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-slate-400 text-sm">Revenu total</p>
-                  <p className="text-3xl font-bold text-white mt-1">
-                    {formatCurrency(stats.revenue)}
-                  </p>
-                  <p className="text-emerald-400 text-sm flex items-center gap-1 mt-2">
-                    <TrendingUp className="w-4 h-4" />
-                    +12% ce mois
-                  </p>
-                </div>
-                <div className="p-4 bg-emerald-900/30 rounded-xl">
-                  <DollarSign className="w-8 h-8 text-emerald-400" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        {isLoading(statsState) && (
+          <div className="flex justify-center py-20">
+            <div className="animate-spin text-4xl">🎬</div>
+          </div>
+        )}
 
-          <Card hoverable>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-slate-400 text-sm">Total réservations</p>
-                  <p className="text-3xl font-bold text-white mt-1">
-                    {stats.totalBookings}
-                  </p>
-                  <p className="text-violet-400 text-sm flex items-center gap-1 mt-2">
-                    <Activity className="w-4 h-4" />
-                    Actif
-                  </p>
-                </div>
-                <div className="p-4 bg-violet-900/30 rounded-xl">
-                  <Calendar className="w-8 h-8 text-violet-400" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card hoverable>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-slate-400 text-sm">En attente</p>
-                  <p className="text-3xl font-bold text-white mt-1">
-                    {stats.pendingBookings}
-                  </p>
-                  <p className="text-amber-400 text-sm flex items-center gap-1 mt-2">
-                    <Clock className="w-4 h-4" />À traiter
-                  </p>
-                </div>
-                <div className="p-4 bg-amber-900/30 rounded-xl">
-                  <Clock className="w-8 h-8 text-amber-400" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card hoverable>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-slate-400 text-sm">Salles actives</p>
-                  <p className="text-3xl font-bold text-white mt-1">{stats.totalRooms}</p>
-                  <p className="text-sky-400 text-sm flex items-center gap-1 mt-2">
-                    <Film className="w-4 h-4" />
-                    Disponibles
-                  </p>
-                </div>
-                <div className="p-4 bg-sky-900/30 rounded-xl">
-                  <Film className="w-8 h-8 text-sky-400" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Recent Bookings */}
-          <div className="lg:col-span-2">
-            <Card>
-              <CardHeader
-                title="Réservations récentes"
-                action={
-                  <Link href="/admin/bookings">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      rightIcon={<ArrowRight className="w-4 h-4" />}
-                    >
-                      Voir tout
-                    </Button>
-                  </Link>
-                }
+        {hasData(statsState) && activeTab === 'overview' && (
+          <>
+            {/* Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+              <StatCard
+                title="Réservations totales"
+                value={stats?.totalBookings || 0}
+                change={{ value: 12, label: 'vs mois dernier' }}
+                icon={<Ticket className="w-6 h-6 text-violet-400" />}
+                color="bg-violet-900/30"
               />
-              <CardContent>
-                {isLoading(bookingsState) && (
-                  <div className="flex justify-center py-8">
-                    <Spinner size="lg" />
-                  </div>
-                )}
+              <StatCard
+                title="Réservations actives"
+                value={stats?.activeBookings || 0}
+                icon={<Calendar className="w-6 h-6 text-green-400" />}
+                color="bg-green-900/30"
+              />
+              <StatCard
+                title="Revenus"
+                value={`${stats?.totalRevenue || 0}€`}
+                change={{ value: 8, label: 'vs mois dernier' }}
+                icon={<TrendingUp className="w-6 h-6 text-amber-400" />}
+                color="bg-amber-900/30"
+              />
+              <StatCard
+                title="Annulations"
+                value={stats?.cancelledBookings || 0}
+                icon={<X className="w-6 h-6 text-red-400" />}
+                color="bg-red-900/30"
+              />
+            </div>
 
-                {hasError(bookingsState) && (
-                  <Alert variant="error" title="Erreur">
-                    {bookingsState.error}
-                  </Alert>
-                )}
-
-                {recentBookings.length > 0 && (
-                  <div className="space-y-3">
-                    {recentBookings.map((booking) => (
-                      <Link
-                        key={booking.id}
-                        href={`/bookings/${booking.id}`}
-                        className="block"
-                      >
-                        <div className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg hover:bg-slate-800 transition-colors">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-linear-to-br from-violet-600 to-purple-700 rounded-lg flex items-center justify-center">
-                              <Film className="w-5 h-5 text-white" />
-                            </div>
-                            <div>
-                              <p className="font-medium text-white">
-                                {booking.roomName || `Salle ${booking.roomId}`}
-                              </p>
-                              <p className="text-sm text-slate-400">
-                                {formatDate(booking.date)}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-medium text-white">
-                              {formatCurrency(booking.totalPrice)}
-                            </p>
-                            <Badge
-                              variant={
-                                booking.status === "confirmed"
-                                  ? "success"
-                                  : booking.status === "pending"
-                                  ? "warning"
-                                  : "default"
-                              }
-                              className="text-xs"
-                            >
-                              {getStatusLabel(booking.status)}
-                            </Badge>
-                          </div>
+            {/* Formules populaires */}
+            <div className="grid lg:grid-cols-2 gap-6 mb-8">
+              <div className="bg-white/5 rounded-2xl p-6">
+                <h2 className="text-lg font-bold mb-4">Formules populaires</h2>
+                <div className="space-y-4">
+                  {stats?.popularFormulas.map((item, index) => (
+                    <div key={item.formula} className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <span className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center text-sm font-bold">
+                          {index + 1}
+                        </span>
+                        <span className="font-medium">{item.formula}</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="w-32 h-2 bg-white/10 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-gradient-to-r from-red-500 to-orange-500 rounded-full"
+                            style={{ width: `${(item.count / 50) * 100}%` }}
+                          />
                         </div>
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                        <span className="text-gray-400 text-sm w-12 text-right">{item.count}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="bg-white/5 rounded-2xl p-6">
+                <h2 className="text-lg font-bold mb-4">Dernières réservations</h2>
+                <div className="space-y-3">
+                  {bookings.slice(0, 5).map(booking => {
+                    const formula = FORMULAS.find(f => f.id === booking.formula);
+                    return (
+                      <div key={booking.id} className="flex items-center gap-3">
+                        <div className="w-10 h-14 relative rounded overflow-hidden flex-shrink-0">
+                          <Image
+                            src={getImageUrl(booking.moviePoster ?? null, 'w200')}
+                            alt={booking.movieTitle ?? 'Film'}
+                            fill
+                            className="object-cover"
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-white truncate">{booking.movieTitle ?? 'Film'}</p>
+                          <p className="text-sm text-gray-400">{formula?.name}</p>
+                        </div>
+                        <span className="font-bold">{booking.totalPrice}€</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {activeTab === 'bookings' && (
+          <div className="bg-white/5 rounded-2xl overflow-hidden">
+            <div className="p-6 border-b border-white/10">
+              <h2 className="text-xl font-bold">Toutes les réservations</h2>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-white/10 text-left text-sm text-gray-400">
+                    <th className="py-4 px-4 font-medium">Film</th>
+                    <th className="py-4 px-4 font-medium">Formule</th>
+                    <th className="py-4 px-4 font-medium">Date</th>
+                    <th className="py-4 px-4 font-medium">Statut</th>
+                    <th className="py-4 px-4 font-medium">Prix</th>
+                    <th className="py-4 px-4 font-medium">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bookings.map(booking => (
+                    <BookingRow
+                      key={booking.id}
+                      booking={booking}
+                      onConfirm={handleConfirm}
+                      onCancel={handleCancel}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-
-          {/* Quick Actions */}
-          <Card>
-            <CardHeader title="Actions rapides" />
-            <CardContent className="space-y-3">
-              <Link href="/admin/rooms" className="block">
-                <div className="flex items-center gap-3 p-4 bg-slate-800/50 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer">
-                  <div className="p-2 bg-violet-900/30 rounded-lg">
-                    <Film className="w-5 h-5 text-violet-400" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-white">Gérer les salles</p>
-                    <p className="text-sm text-slate-400">Ajouter ou modifier</p>
-                  </div>
-                </div>
-              </Link>
-
-              <Link href="/admin/bookings" className="block">
-                <div className="flex items-center gap-3 p-4 bg-slate-800/50 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer">
-                  <div className="p-2 bg-emerald-900/30 rounded-lg">
-                    <Calendar className="w-5 h-5 text-emerald-400" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-white">Réservations</p>
-                    <p className="text-sm text-slate-400">Gérer les demandes</p>
-                  </div>
-                </div>
-              </Link>
-
-              <div className="flex items-center gap-3 p-4 bg-slate-800/50 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer">
-                <div className="p-2 bg-amber-900/30 rounded-lg">
-                  <Users className="w-5 h-5 text-amber-400" />
-                </div>
-                <div>
-                  <p className="font-medium text-white">Utilisateurs</p>
-                  <p className="text-sm text-slate-400">Gérer les comptes</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 p-4 bg-slate-800/50 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer">
-                <div className="p-2 bg-sky-900/30 rounded-lg">
-                  <FileText className="w-5 h-5 text-sky-400" />
-                </div>
-                <div>
-                  <p className="font-medium text-white">Rapports</p>
-                  <p className="text-sm text-slate-400">Statistiques détaillées</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 p-4 bg-slate-800/50 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer">
-                <div className="p-2 bg-slate-700 rounded-lg">
-                  <Settings className="w-5 h-5 text-slate-400" />
-                </div>
-                <div>
-                  <p className="font-medium text-white">Paramètres</p>
-                  <p className="text-sm text-slate-400">Configuration</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    </DashboardLayout>
+        )}
+      </main>
+    </div>
   );
 }

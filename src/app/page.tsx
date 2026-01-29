@@ -2,270 +2,488 @@
 
 import { SignInButton, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
 import Link from "next/link";
-import { useState } from "react";
-import { ChevronRight, Play, Calendar, Users, MapPin, Filter } from "lucide-react";
-import { movies, categories } from "@/lib/movies";
+import Image from "next/image";
+import { useState, useEffect } from "react";
+import { Play, Star, Clock, ChevronLeft, ChevronRight, Ticket, Sparkles, Film, Users } from "lucide-react";
+import { TMDBMovie, FORMULAS, TMDB_GENRES } from "@/types";
+import { getImageUrl, getBackdropUrl, MOCK_MOVIES } from "@/lib/tmdb";
 
-const rooms = [
-  { id: 1, name: "Salle VIP", capacity: "8 places", price: "€€€", available: true },
-  { id: 2, name: "Salle Standard", capacity: "20 places", price: "€€", available: true },
-  { id: 3, name: "Salle IMAX", capacity: "150 places", price: "€€€", available: false },
-];
+// ============================================
+// COMPOSANTS UI INTERNES
+// ============================================
 
-export default function LandingPage() {
-  const [selectedMovie, setSelectedMovie] = useState<string>("");
-  const [selectedDate, setSelectedDate] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("Tous");
-  const [filteredMovies, setFilteredMovies] = useState(movies);
+const MovieCard = ({ movie, featured = false }: { movie: TMDBMovie; featured?: boolean }) => {
+  const genres = movie.genre_ids?.slice(0, 2).map(id => TMDB_GENRES[id]).filter(Boolean) || [];
+  
+  return (
+    <Link 
+      href={`/movie/${movie.id}`}
+      className={`group relative flex-shrink-0 overflow-hidden rounded-lg transition-all duration-300 hover:scale-105 hover:z-10 ${
+        featured ? "w-[300px] md:w-[340px]" : "w-[160px] md:w-[200px]"
+      }`}
+    >
+      <div className={`relative ${featured ? "aspect-[2/3]" : "aspect-[2/3]"}`}>
+        <Image
+          src={getImageUrl(movie.poster_path, "w500")}
+          alt={movie.title}
+          fill
+          className="object-cover"
+          sizes={featured ? "(max-width: 768px) 300px, 340px" : "(max-width: 768px) 160px, 200px"}
+        />
+        
+        {/* Overlay gradient */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+        
+        {/* Info on hover */}
+        <div className="absolute bottom-0 left-0 right-0 p-4 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
+          <h3 className="font-bold text-white text-sm md:text-base line-clamp-2">{movie.title}</h3>
+          <div className="flex items-center gap-2 mt-2 text-xs text-gray-300">
+            <span className="flex items-center gap-1">
+              <Star size={12} className="text-yellow-400 fill-yellow-400" />
+              {movie.vote_average.toFixed(1)}
+            </span>
+            <span>•</span>
+            <span>{new Date(movie.release_date).getFullYear()}</span>
+          </div>
+          {genres.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-2">
+              {genres.map(genre => (
+                <span key={genre} className="px-2 py-0.5 bg-white/20 rounded text-xs">
+                  {genre}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+        
+        {/* Badge note */}
+        <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-1 bg-black/70 rounded-full text-xs">
+          <Star size={10} className="text-yellow-400 fill-yellow-400" />
+          <span className="text-white font-medium">{movie.vote_average.toFixed(1)}</span>
+        </div>
+      </div>
+    </Link>
+  );
+};
 
-  const handleCategoryFilter = (category: string) => {
-    setSelectedCategory(category);
-    if (category === "Tous") {
-      setFilteredMovies(movies);
-    } else {
-      setFilteredMovies(movies.filter(m => m.category === category));
+const MovieCarousel = ({ title, movies, icon }: { title: string; movies: TMDBMovie[]; icon?: React.ReactNode }) => {
+  const [scrollPosition, setScrollPosition] = useState(0);
+  const scrollRef = useState<HTMLDivElement | null>(null);
+  
+  const scroll = (direction: "left" | "right") => {
+    const container = document.getElementById(`carousel-${title.replace(/\s/g, "-")}`);
+    if (container) {
+      const scrollAmount = direction === "left" ? -400 : 400;
+      container.scrollBy({ left: scrollAmount, behavior: "smooth" });
+      setScrollPosition(container.scrollLeft + scrollAmount);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-white overflow-hidden">
-      {/* Header */}
-      <header className="fixed top-0 w-full z-50 bg-gradient-to-b from-slate-950 to-transparent">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="text-2xl font-bold tracking-tighter">
-            <span className="text-red-600">◆</span> CineRoom
-          </div>
-          <SignedOut>
-            <SignInButton mode="modal">
-              <button className="px-6 py-2 bg-red-600 hover:bg-red-700 rounded-full transition-colors font-medium">
-                Se connecter
-              </button>
-            </SignInButton>
-          </SignedOut>
-          <SignedIn>
-            <div className="flex items-center gap-4">
-              <Link href="/dashboard" className="hover:text-red-400 transition-colors">
-                Dashboard
-              </Link>
-              <UserButton afterSignOutUrl="/" />
+    <section className="relative py-6">
+      <div className="flex items-center gap-3 mb-4 px-4 md:px-12">
+        {icon}
+        <h2 className="text-xl md:text-2xl font-bold text-white">{title}</h2>
+      </div>
+      
+      <div className="relative group">
+        {/* Bouton gauche */}
+        <button
+          onClick={() => scroll("left")}
+          className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-12 h-full bg-gradient-to-r from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+          aria-label="Défiler vers la gauche"
+        >
+          <ChevronLeft size={32} className="text-white" />
+        </button>
+        
+        {/* Container scroll */}
+        <div
+          id={`carousel-${title.replace(/\s/g, "-")}`}
+          className="flex gap-3 overflow-x-auto scrollbar-hide px-4 md:px-12 pb-4"
+          style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+        >
+          {movies.map((movie) => (
+            <MovieCard key={movie.id} movie={movie} />
+          ))}
+        </div>
+        
+        {/* Bouton droite */}
+        <button
+          onClick={() => scroll("right")}
+          className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-12 h-full bg-gradient-to-l from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+          aria-label="Défiler vers la droite"
+        >
+          <ChevronRight size={32} className="text-white" />
+        </button>
+      </div>
+    </section>
+  );
+};
+
+const FormulaCard = ({ formula }: { formula: typeof FORMULAS[0] }) => (
+  <div className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${formula.color} p-6 md:p-8 transition-transform hover:scale-105`}>
+    {formula.popular && (
+      <div className="absolute top-4 right-4 px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-xs font-medium">
+        ⭐ Populaire
+      </div>
+    )}
+    <div className="text-4xl mb-4">{formula.icon}</div>
+    <h3 className="text-2xl font-bold text-white mb-2">{formula.name}</h3>
+    <p className="text-white/80 mb-4">{formula.description}</p>
+    <div className="flex items-baseline gap-2 mb-4">
+      <span className="text-3xl font-bold text-white">{formula.basePrice}€</span>
+      <span className="text-white/60">/ séance</span>
+    </div>
+    <div className="flex items-center gap-2 text-white/80 text-sm">
+      <Users size={16} />
+      <span>{formula.seats} places</span>
+    </div>
+    <SignedIn>
+      <Link
+        href={`/book?formula=${formula.id}`}
+        className="mt-6 block w-full py-3 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-xl text-center font-medium transition-colors"
+      >
+        Réserver
+      </Link>
+    </SignedIn>
+    <SignedOut>
+      <SignInButton mode="modal">
+        <button className="mt-6 w-full py-3 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-xl font-medium transition-colors">
+          Réserver
+        </button>
+      </SignInButton>
+    </SignedOut>
+  </div>
+);
+
+// ============================================
+// PAGE PRINCIPALE
+// ============================================
+
+export default function LandingPage() {
+  const [heroMovie, setHeroMovie] = useState<TMDBMovie | null>(null);
+  const [movies, setMovies] = useState<TMDBMovie[]>([]);
+  const [heroIndex, setHeroIndex] = useState(0);
+
+  useEffect(() => {
+    // Charger les films mock (ou depuis TMDB avec clé API)
+    setMovies(MOCK_MOVIES);
+    setHeroMovie(MOCK_MOVIES[0]);
+  }, []);
+
+  // Rotation automatique du hero
+  useEffect(() => {
+    if (movies.length === 0) return;
+    
+    const interval = setInterval(() => {
+      setHeroIndex((prev) => {
+        const next = (prev + 1) % Math.min(movies.length, 5);
+        setHeroMovie(movies[next]);
+        return next;
+      });
+    }, 8000);
+
+    return () => clearInterval(interval);
+  }, [movies]);
+
+  const trendingMovies = movies.slice(0, 10);
+  const actionMovies = movies.filter(m => m.genre_ids?.includes(28));
+  const sfMovies = movies.filter(m => m.genre_ids?.includes(878));
+  const dramaMovies = movies.filter(m => m.genre_ids?.includes(18));
+  const comedyMovies = movies.filter(m => m.genre_ids?.includes(35));
+
+  return (
+    <div className="min-h-screen bg-[#0a0a0a] text-white">
+      {/* Header fixe transparent */}
+      <header className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-b from-black/80 via-black/50 to-transparent">
+        <div className="max-w-[1800px] mx-auto px-4 md:px-12 py-4 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2">
+            <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-orange-500 rounded-lg flex items-center justify-center">
+              <Film size={24} className="text-white" />
             </div>
-          </SignedIn>
+            <span className="text-2xl font-black tracking-tight">
+              Cine<span className="text-red-500">Room</span>
+            </span>
+          </Link>
+
+          <nav className="hidden md:flex items-center gap-8">
+            <Link href="/catalogue" className="hover:text-red-400 transition-colors font-medium">
+              Catalogue
+            </Link>
+            <SignedIn>
+              <Link href="/dashboard" className="hover:text-red-400 transition-colors font-medium">
+                Mes Réservations
+              </Link>
+            </SignedIn>
+            <Link href="#formules" className="hover:text-red-400 transition-colors font-medium">
+              Nos Formules
+            </Link>
+          </nav>
+
+          <div className="flex items-center gap-4">
+            <SignedOut>
+              <SignInButton mode="modal">
+                <button className="px-6 py-2.5 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 rounded-full font-semibold transition-all hover:scale-105">
+                  Connexion
+                </button>
+              </SignInButton>
+            </SignedOut>
+            <SignedIn>
+              <Link
+                href="/book"
+                className="hidden md:flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 rounded-full font-semibold transition-all hover:scale-105"
+              >
+                <Ticket size={18} />
+                Réserver
+              </Link>
+              <UserButton 
+                afterSignOutUrl="/"
+                appearance={{
+                  elements: {
+                    avatarBox: "w-10 h-10"
+                  }
+                }}
+              />
+            </SignedIn>
+          </div>
         </div>
       </header>
 
       {/* Hero Section */}
-      <section className="pt-32 pb-20 px-4">
-        <div className="max-w-7xl mx-auto">
-          <div className="space-y-6 text-center">
-            <h1 className="text-5xl md:text-7xl font-bold tracking-tighter">
-              Réservez votre<br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-600 to-orange-500">
-                expérience cinéma
-              </span>
-            </h1>
-            <p className="text-xl text-slate-400 max-w-2xl mx-auto">
-              Les meilleurs films dans les plus beaux cinémas. Réservez votre salle et vivez une expérience inoubliable.
-            </p>
-            <div className="flex gap-4 justify-center pt-4">
-              <SignedOut>
-                <SignInButton mode="modal">
-                  <button className="flex items-center gap-2 px-8 py-3 bg-red-600 hover:bg-red-700 rounded-full transition-all hover:scale-105 font-medium text-lg">
-                    <Play size={20} /> Commencer
-                  </button>
-                </SignInButton>
-              </SignedOut>
-              <SignedIn>
-                <Link href="/dashboard" className="flex items-center gap-2 px-8 py-3 bg-red-600 hover:bg-red-700 rounded-full transition-all hover:scale-105 font-medium text-lg">
-                  <Play size={20} /> Réserver maintenant
+      {heroMovie && (
+        <section className="relative h-[85vh] min-h-[600px]">
+          {/* Background Image */}
+          <div className="absolute inset-0">
+            <Image
+              src={getBackdropUrl(heroMovie.backdrop_path)}
+              alt={heroMovie.title}
+              fill
+              className="object-cover"
+              priority
+            />
+            {/* Overlays */}
+            <div className="absolute inset-0 bg-gradient-to-r from-black via-black/70 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-transparent to-transparent" />
+          </div>
+
+          {/* Content */}
+          <div className="relative h-full max-w-[1800px] mx-auto px-4 md:px-12 flex items-center">
+            <div className="max-w-2xl pt-20">
+              {/* Badges */}
+              <div className="flex items-center gap-3 mb-4">
+                <span className="px-3 py-1 bg-red-500 rounded-full text-sm font-medium">
+                  À l&apos;affiche
+                </span>
+                <span className="flex items-center gap-1 px-3 py-1 bg-white/10 backdrop-blur-sm rounded-full text-sm">
+                  <Star size={14} className="text-yellow-400 fill-yellow-400" />
+                  {heroMovie.vote_average.toFixed(1)}
+                </span>
+                <span className="px-3 py-1 bg-white/10 backdrop-blur-sm rounded-full text-sm">
+                  {new Date(heroMovie.release_date).getFullYear()}
+                </span>
+              </div>
+
+              {/* Title */}
+              <h1 className="text-4xl md:text-6xl lg:text-7xl font-black mb-4 leading-tight">
+                {heroMovie.title}
+              </h1>
+
+              {/* Synopsis */}
+              <p className="text-lg text-gray-300 mb-8 line-clamp-3 md:line-clamp-4">
+                {heroMovie.overview}
+              </p>
+
+              {/* CTA Buttons */}
+              <div className="flex flex-wrap gap-4">
+                <SignedIn>
+                  <Link
+                    href={`/book?movie=${heroMovie.id}`}
+                    className="flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 rounded-full font-bold text-lg transition-all hover:scale-105 shadow-lg shadow-red-500/30"
+                  >
+                    <Ticket size={24} />
+                    Réserver une salle
+                  </Link>
+                </SignedIn>
+                <SignedOut>
+                  <SignInButton mode="modal">
+                    <button className="flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 rounded-full font-bold text-lg transition-all hover:scale-105 shadow-lg shadow-red-500/30">
+                      <Ticket size={24} />
+                      Réserver une salle
+                    </button>
+                  </SignInButton>
+                </SignedOut>
+                <Link
+                  href={`/movie/${heroMovie.id}`}
+                  className="flex items-center gap-2 px-8 py-4 bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-full font-bold text-lg transition-all"
+                >
+                  <Play size={24} />
+                  Plus d&apos;infos
                 </Link>
-              </SignedIn>
+              </div>
             </div>
           </div>
-        </div>
-      </section>
 
-      {/* Search Section */}
-      <SignedIn>
-        <section className="py-12 px-4 bg-slate-800/50 backdrop-blur-sm">
-          <div className="max-w-7xl mx-auto">
-            <div className="grid md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm text-slate-400">Film</label>
-                <select 
-                  onChange={(e) => setSelectedMovie(e.target.value)}
-                  className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg focus:border-red-600 outline-none transition-colors text-white"
-                >
-                  <option value="">Choisir un film</option>
-                  {filteredMovies.map(m => (
-                    <option key={m.id} value={m.id}>{m.title}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm text-slate-400">Date</label>
-                <input 
-                  type="date"
-                  onChange={(e) => setSelectedDate(e.target.value)}
-                  className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg focus:border-red-600 outline-none transition-colors text-white"
-                />
-              </div>
-              <div className="flex items-end">
-                <button className="w-full px-4 py-3 bg-red-600 hover:bg-red-700 rounded-lg transition-colors font-medium">
-                  Chercher
-                </button>
-              </div>
-            </div>
+          {/* Hero navigation dots */}
+          <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex gap-2">
+            {movies.slice(0, 5).map((_, index) => (
+              <button
+                key={index}
+                onClick={() => {
+                  setHeroIndex(index);
+                  setHeroMovie(movies[index]);
+                }}
+                className={`w-2 h-2 rounded-full transition-all ${
+                  index === heroIndex ? "w-8 bg-red-500" : "bg-white/40 hover:bg-white/60"
+                }`}
+                aria-label={`Voir le film ${index + 1}`}
+              />
+            ))}
           </div>
         </section>
-      </SignedIn>
+      )}
 
-      {/* Categories */}
-      <section className="py-12 px-4">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center gap-4 overflow-x-auto pb-4">
-            <button
-              onClick={() => handleCategoryFilter("Tous")}
-              className={`px-6 py-2 rounded-full font-medium whitespace-nowrap transition-colors ${
-                selectedCategory === "Tous"
-                  ? "bg-red-600"
-                  : "bg-slate-800 hover:bg-slate-700"
-              }`}
-            >
-              Tous
-            </button>
-            {categories.map(category => (
-              <button
-                key={category}
-                onClick={() => handleCategoryFilter(category)}
-                className={`px-6 py-2 rounded-full font-medium whitespace-nowrap transition-colors ${
-                  selectedCategory === category
-                    ? "bg-red-600"
-                    : "bg-slate-800 hover:bg-slate-700"
-                }`}
-              >
-                {category}
-              </button>
-            ))}
-          </div>
+      {/* Nos Formules */}
+      <section id="formules" className="py-16 px-4 md:px-12 max-w-[1800px] mx-auto">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl md:text-4xl font-black mb-4">
+            Votre expérience <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-orange-500">sur mesure</span>
+          </h2>
+          <p className="text-gray-400 text-lg max-w-2xl mx-auto">
+            Choisissez la formule qui vous correspond. Salle privée, grand écran, son immersif.
+          </p>
+        </div>
+
+        <div className="grid md:grid-cols-3 gap-6">
+          {FORMULAS.map((formula) => (
+            <FormulaCard key={formula.id} formula={formula} />
+          ))}
         </div>
       </section>
 
-      {/* Movies Section */}
-      <section className="py-20 px-4">
-        <div className="max-w-7xl mx-auto">
-          <div className="mb-12">
-            <h2 className="text-4xl font-bold mb-2">
-              {selectedCategory === "Tous" ? "Films à l'affiche" : `Films ${selectedCategory}`}
+      {/* Carrousels de films */}
+      <div className="pb-12 max-w-[1800px] mx-auto">
+        <MovieCarousel
+          title="Tendances"
+          movies={trendingMovies}
+          icon={<Sparkles className="text-red-500" size={24} />}
+        />
+        
+        {actionMovies.length > 0 && (
+          <MovieCarousel
+            title="Action"
+            movies={actionMovies}
+            icon={<span className="text-2xl">💥</span>}
+          />
+        )}
+        
+        {sfMovies.length > 0 && (
+          <MovieCarousel
+            title="Science-Fiction"
+            movies={sfMovies}
+            icon={<span className="text-2xl">🚀</span>}
+          />
+        )}
+        
+        {dramaMovies.length > 0 && (
+          <MovieCarousel
+            title="Drame"
+            movies={dramaMovies}
+            icon={<span className="text-2xl">🎭</span>}
+          />
+        )}
+        
+        {comedyMovies.length > 0 && (
+          <MovieCarousel
+            title="Comédie"
+            movies={comedyMovies}
+            icon={<span className="text-2xl">😂</span>}
+          />
+        )}
+      </div>
+
+      {/* Section avantages */}
+      <section className="py-20 px-4 md:px-12 bg-gradient-to-b from-transparent via-red-950/10 to-transparent">
+        <div className="max-w-[1800px] mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-4xl font-black mb-4">
+              Pourquoi choisir <span className="text-red-500">CineRoom</span> ?
             </h2>
-            <div className="h-1 w-20 bg-gradient-to-r from-red-600 to-orange-500"></div>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {filteredMovies.map(movie => (
-              <Link key={movie.id} href={`/movie/${movie.id}`}>
-                <div className="group cursor-pointer h-full">
-                  <div className="relative overflow-hidden rounded-lg bg-slate-800 aspect-[2/3] group-hover:scale-110 transition-transform duration-300 border border-slate-700 group-hover:border-red-600">
-                    <img 
-                      src={movie.image}
-                      alt={movie.title}
-                      className="w-full h-full object-cover"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center">
-                      <div className="text-center">
-                        <p className="font-bold text-sm mb-2">{movie.title}</p>
-                        <p className="text-yellow-400 text-xs mb-3">⭐ {movie.rating.toFixed(1)}</p>
-                        <button className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-full text-xs font-medium transition-colors">
-                          Détails
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
 
-      {/* Rooms Section */}
-      <section className="py-20 px-4 bg-slate-800/30">
-        <div className="max-w-7xl mx-auto">
-          <div className="mb-12">
-            <h2 className="text-4xl font-bold mb-2">Nos salles premium</h2>
-            <div className="h-1 w-20 bg-gradient-to-r from-red-600 to-orange-500"></div>
-          </div>
-          <div className="grid md:grid-cols-3 gap-6">
-            {rooms.map(room => (
-              <div 
-                key={room.id}
-                className={`rounded-lg border-2 p-6 transition-all ${
-                  room.available 
-                    ? 'border-slate-600 hover:border-red-600 bg-slate-800/50' 
-                    : 'border-slate-700 bg-slate-800/20 opacity-60'
-                }`}
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <h3 className="text-xl font-bold">{room.name}</h3>
-                    {!room.available && <p className="text-red-400 text-sm">Non disponible</p>}
-                  </div>
-                  <span className="text-red-600 font-bold">{room.price}</span>
-                </div>
-                <div className="space-y-3 mb-6">
-                  <div className="flex items-center gap-2 text-slate-300">
-                    <Users size={18} /> {room.capacity}
-                  </div>
-                  <div className="flex items-center gap-2 text-slate-300">
-                    <MapPin size={18} /> Localisation premium
-                  </div>
-                  <div className="flex items-center gap-2 text-slate-300">
-                    <Calendar size={18} /> Disponible
-                  </div>
-                </div>
-                <SignedIn>
-                  <button 
-                    disabled={!room.available}
-                    className={`w-full py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 ${
-                      room.available 
-                        ? 'bg-red-600 hover:bg-red-700' 
-                        : 'bg-slate-700 cursor-not-allowed'
-                    }`}
-                  >
-                    Réserver <ChevronRight size={18} />
-                  </button>
-                </SignedIn>
+          <div className="grid md:grid-cols-4 gap-8">
+            {[
+              { icon: "🎬", title: "Salle Privée", desc: "Profitez d'une salle rien que pour vous" },
+              { icon: "🍿", title: "Consommables", desc: "Popcorn, boissons et snacks premium" },
+              { icon: "📅", title: "Réservation Simple", desc: "Choisissez votre créneau en quelques clics" },
+              { icon: "✨", title: "Expérience VIP", desc: "Son Dolby, 4K, confort optimal" },
+            ].map((item, index) => (
+              <div key={index} className="text-center p-6 rounded-2xl bg-white/5 hover:bg-white/10 transition-colors">
+                <div className="text-5xl mb-4">{item.icon}</div>
+                <h3 className="text-xl font-bold mb-2">{item.title}</h3>
+                <p className="text-gray-400">{item.desc}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Features Section */}
-      <section className="py-20 px-4">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="text-center space-y-3">
-              <div className="text-4xl">🎬</div>
-              <h3 className="text-xl font-bold">Films variés</h3>
-              <p className="text-slate-400">Tous les derniers blockbusters et films indépendants</p>
-            </div>
-            <div className="text-center space-y-3">
-              <div className="text-4xl">✨</div>
-              <h3 className="text-xl font-bold">Expérience premium</h3>
-              <p className="text-slate-400">Salles de luxe et équipements de dernière génération</p>
-            </div>
-            <div className="text-center space-y-3">
-              <div className="text-4xl">⚡</div>
-              <h3 className="text-xl font-bold">Réservation facile</h3>
-              <p className="text-slate-400">Réservez en quelques clics, directement en ligne</p>
-            </div>
-          </div>
+      {/* CTA Final */}
+      <section className="py-20 px-4 md:px-12">
+        <div className="max-w-4xl mx-auto text-center">
+          <h2 className="text-3xl md:text-5xl font-black mb-6">
+            Prêt pour une expérience <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-orange-500">inoubliable</span> ?
+          </h2>
+          <p className="text-xl text-gray-400 mb-8">
+            Réservez votre salle privée dès maintenant
+          </p>
+          <SignedOut>
+            <SignInButton mode="modal">
+              <button className="px-10 py-5 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 rounded-full font-bold text-xl transition-all hover:scale-105 shadow-lg shadow-red-500/30">
+                Commencer maintenant
+              </button>
+            </SignInButton>
+          </SignedOut>
+          <SignedIn>
+            <Link
+              href="/book"
+              className="inline-flex items-center gap-3 px-10 py-5 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 rounded-full font-bold text-xl transition-all hover:scale-105 shadow-lg shadow-red-500/30"
+            >
+              <Ticket size={28} />
+              Réserver maintenant
+            </Link>
+          </SignedIn>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-slate-800 py-12 px-4">
-        <div className="max-w-7xl mx-auto text-center text-slate-400">
-          <p>&copy; 2025 CineRoom. Tous droits réservés.</p>
+      <footer className="border-t border-white/10 py-12 px-4 md:px-12">
+        <div className="max-w-[1800px] mx-auto">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-gradient-to-br from-red-500 to-orange-500 rounded-lg flex items-center justify-center">
+                <Film size={18} className="text-white" />
+              </div>
+              <span className="text-xl font-black">
+                Cine<span className="text-red-500">Room</span>
+              </span>
+            </div>
+            
+            <div className="flex items-center gap-8 text-sm text-gray-400">
+              <Link href="/mentions-legales" className="hover:text-white transition-colors">
+                Mentions légales
+              </Link>
+              <Link href="/cgv" className="hover:text-white transition-colors">
+                CGV
+              </Link>
+              <Link href="/contact" className="hover:text-white transition-colors">
+                Contact
+              </Link>
+            </div>
+            
+            <p className="text-sm text-gray-500">
+              © 2026 CineRoom. Tous droits réservés.
+            </p>
+          </div>
         </div>
       </footer>
     </div>
