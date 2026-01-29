@@ -23,7 +23,7 @@ export default function MoviePage() {
         <div className="text-center">
           <h1 className="text-4xl font-bold mb-4">Film non trouvé</h1>
           <Link href="/" className="text-red-600 hover:text-red-400">
-            Retourner à l'accueil
+            Retourner à l&apos;accueil
           </Link>
         </div>
       </div>

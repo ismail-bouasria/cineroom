@@ -1,19 +1,32 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
-// On definit la landing page comme page publique
-const isPublicRoute = createRouteMatcher(["/"]);
+const isPublicRoute = createRouteMatcher([
+  "/",
+  "/movie/(.*)",
+  "/login(.*)",
+  "/unauthorized",
+  "/forbidden",
+]);
 
-export default clerkMiddleware((auth, request) => {
-  if (!isPublicRoute(request)) {
-    auth.protect(); // redirige automatiquement vers la page de connexion si non authentifié
+const isAdminRoute = createRouteMatcher(["/admin(.*)"]);
+
+export default clerkMiddleware(async (auth, req) => {
+  if (!isPublicRoute(req)) {
+    await auth.protect();
+  }
+
+  if (isAdminRoute(req)) {
+    // TODO: Vérifier le rôle admin via Clerk metadata
+    // const { sessionClaims } = await auth();
+    // if (sessionClaims?.metadata?.role !== 'admin') {
+    //   return Response.redirect(new URL('/forbidden', req.url));
+    // }
   }
 });
 
 export const config = {
   matcher: [
-    // Ignore les fichiers statiques et les API routes
     "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
-    // Toujours exécuter pour les API
     "/(api|trpc)(.*)",
   ],
 };
