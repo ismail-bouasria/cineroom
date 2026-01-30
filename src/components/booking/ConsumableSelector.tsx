@@ -53,13 +53,13 @@ function ConsumableItem({
     <div className={`
       relative p-4 rounded-xl transition-all
       ${quantity > 0 
-        ? 'bg-gradient-to-r from-red-500/20 to-orange-500/20 border border-red-500/30' 
+        ? 'bg-red-500/20 border border-red-500/30' 
         : 'bg-white/5 hover:bg-white/10 border border-transparent'
       }
     `}>
       {/* Badge quantité */}
       {quantity > 0 && (
-        <div className="absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-r from-red-500 to-orange-500 rounded-full flex items-center justify-center text-xs font-bold">
+        <div className="absolute -top-2 -right-2 w-6 h-6 bg-red-600 rounded-full flex items-center justify-center text-xs font-bold">
           {quantity}
         </div>
       )}
@@ -89,7 +89,7 @@ function ConsumableItem({
               <button
                 onClick={onAdd}
                 disabled={quantity >= maxQuantity}
-                className="w-8 h-8 rounded-full bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-8 h-8 rounded-full bg-red-600 hover:bg-red-700 flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 aria-label="Ajouter"
               >
                 <Plus size={16} />
@@ -185,7 +185,7 @@ export function ConsumableSelector({
               className={`
                 relative flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all
                 ${activeCategory === category
-                  ? 'bg-gradient-to-r from-red-500 to-orange-500 text-white'
+                  ? 'bg-red-600 text-white'
                   : 'bg-white/10 hover:bg-white/20 text-white'
                 }
               `}

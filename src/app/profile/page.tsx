@@ -42,7 +42,7 @@ export default function ProfilePage() {
                 pageScrollBox: "p-0",
                 profileSection: "border-white/10",
                 formFieldInput: "bg-white/10 border-white/20 text-white",
-                formButtonPrimary: "bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600",
+                formButtonPrimary: "bg-red-600 hover:bg-red-700",
                 headerTitle: "text-white",
                 headerSubtitle: "text-gray-400"
               }
@@ -107,7 +107,7 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          <button className="w-full mt-6 px-6 py-3 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 rounded-xl font-medium transition-colors">
+          <button className="w-full mt-6 px-6 py-3 bg-red-600 hover:bg-red-700 rounded-xl font-medium transition-colors">
             Enregistrer les préférences
           </button>
         </div>

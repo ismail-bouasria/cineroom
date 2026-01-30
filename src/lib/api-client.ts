@@ -376,12 +376,23 @@ const MUTATIONS = {
     mutation CancelBooking($id: ID!) {
       cancelBooking(id: $id) {
         id
-        status
+        movieId
         movieTitle
+        moviePoster
+        formula
         date
         time
         roomNumber
         totalPrice
+        status
+        specialRequests
+        consumables {
+          id
+          quantity
+          consumable { id name price category }
+        }
+        createdAt
+        updatedAt
       }
     }
   `,

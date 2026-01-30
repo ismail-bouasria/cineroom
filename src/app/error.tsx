@@ -32,7 +32,7 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <button
             onClick={reset}
-            className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-red-500 to-orange-500 text-white font-semibold rounded-xl hover:opacity-90 transition"
+            className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-xl transition-colors"
           >
             <RefreshCw className="w-5 h-5" />
             Réessayer

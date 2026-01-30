@@ -3,18 +3,18 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
 import { 
   ArrowLeft, ArrowRight, Check, Film, Calendar as CalendarIcon, 
   Users, ShoppingBag, CreditCard, Star, Clock, Ticket
 } from 'lucide-react';
 import { useAuth } from '@clerk/nextjs';
-import { TMDBMovie, FORMULAS, FormulaConfig, CONSUMABLES } from '@/types';
+import { TMDBMovie, FORMULAS, FormulaConfig, CONSUMABLES, TMDB_GENRES } from '@/types';
 import { getImageUrl, MOCK_MOVIES } from '@/lib/tmdb';
 import { Calendar } from '@/components/booking/Calendar';
 import { ConsumableSelector, ConsumableSelection, ConsumableSummary } from '@/components/booking/ConsumableSelector';
 import { TimeSlotModal } from '@/components/booking/TimeSlotModal';
 import { bookingsApi } from '@/lib/api-client';
+import { MovieImage } from '@/components/common/MovieImage';
 
 // ============================================
 // TYPES
@@ -51,11 +51,30 @@ function MovieSelection({
   onSelect: (movie: TMDBMovie) => void;
 }) {
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedGenre, setSelectedGenre] = useState<number | null>(null);
   const movies = MOCK_MOVIES;
   
-  const filteredMovies = searchQuery 
-    ? movies.filter(m => m.title.toLowerCase().includes(searchQuery.toLowerCase()))
-    : movies;
+  // Genres disponibles dans les films
+  const AVAILABLE_GENRES = [
+    { id: 28, name: 'Action' },
+    { id: 12, name: 'Aventure' },
+    { id: 16, name: 'Animation' },
+    { id: 35, name: 'Comédie' },
+    { id: 80, name: 'Crime' },
+    { id: 18, name: 'Drame' },
+    { id: 14, name: 'Fantastique' },
+    { id: 27, name: 'Horreur' },
+    { id: 10749, name: 'Romance' },
+    { id: 878, name: 'Science-Fiction' },
+    { id: 53, name: 'Thriller' },
+    { id: 10752, name: 'Guerre' }
+  ];
+  
+  const filteredMovies = movies.filter(m => {
+    const matchesSearch = !searchQuery || m.title.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesGenre = !selectedGenre || m.genre_ids?.includes(selectedGenre);
+    return matchesSearch && matchesGenre;
+  });
 
   return (
     <div className="space-y-6">
@@ -75,6 +94,33 @@ function MovieSelection({
         />
       </div>
 
+      {/* Filtre par catégorie */}
+      <div className="flex flex-wrap gap-2">
+        <button
+          onClick={() => setSelectedGenre(null)}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            selectedGenre === null
+              ? 'bg-red-600 text-white'
+              : 'bg-white/10 text-gray-300 hover:bg-white/20'
+          }`}
+        >
+          Tous
+        </button>
+        {AVAILABLE_GENRES.map(genre => (
+          <button
+            key={genre.id}
+            onClick={() => setSelectedGenre(genre.id)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              selectedGenre === genre.id
+                ? 'bg-red-600 text-white'
+                : 'bg-white/10 text-gray-300 hover:bg-white/20'
+            }`}
+          >
+            {genre.name}
+          </button>
+        ))}
+      </div>
+
       {/* Grille de films */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
         {filteredMovies.map(movie => (
@@ -90,7 +136,7 @@ function MovieSelection({
             `}
           >
             <div className="aspect-[2/3] relative">
-              <Image
+              <MovieImage
                 src={getImageUrl(movie.poster_path)}
                 alt={movie.title}
                 fill
@@ -115,7 +161,7 @@ function MovieSelection({
 
               {/* Check si sélectionné */}
               {selectedMovie?.id === movie.id && (
-                <div className="absolute top-2 right-2 w-8 h-8 bg-gradient-to-r from-red-500 to-orange-500 rounded-full flex items-center justify-center">
+                <div className="absolute top-2 right-2 w-8 h-8 bg-red-600 rounded-full flex items-center justify-center">
                   <Check size={18} />
                 </div>
               )}
@@ -386,7 +432,7 @@ function BookingSummary({
         {booking.movie && (
           <div className="bg-white/5 rounded-xl p-4 flex gap-4">
             <div className="w-20 h-28 relative flex-shrink-0 rounded-lg overflow-hidden">
-              <Image
+              <MovieImage
                 src={getImageUrl(booking.movie.poster_path, 'w200')}
                 alt={booking.movie.title}
                 fill
@@ -445,7 +491,7 @@ function BookingSummary({
         <ConsumableSummary selections={booking.consumables} />
 
         {/* Total */}
-        <div className="bg-gradient-to-r from-red-500/20 to-orange-500/20 rounded-xl p-6 border border-red-500/30">
+        <div className="bg-red-500/10 rounded-xl p-6 border border-red-500/20">
           <div className="flex justify-between items-center">
             <div>
               <span className="text-gray-400">Total à payer</span>
@@ -454,7 +500,7 @@ function BookingSummary({
             <button
               onClick={onConfirm}
               disabled={isLoading}
-              className="flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 rounded-full font-bold text-lg transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-2 px-8 py-4 bg-red-600 hover:bg-red-700 rounded-xl font-bold text-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? (
                 <span className="animate-spin">⏳</span>
@@ -600,7 +646,7 @@ function BookingContent() {
                   className={`
                     flex items-center gap-2 px-3 py-2 rounded-full text-sm font-medium transition-all
                     ${currentStep === step.id
-                      ? 'bg-gradient-to-r from-red-500 to-orange-500 text-white'
+                      ? 'bg-red-600 text-white'
                       : index < currentStepIndex
                         ? 'bg-green-500/20 text-green-400'
                         : 'bg-white/10 text-gray-500'

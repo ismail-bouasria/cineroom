@@ -200,7 +200,7 @@ export const MOCK_MOVIES: TMDBMovie[] = [
     title: "The Batman",
     original_title: "The Batman",
     overview: "Batman enquête sur une série de meurtres à Gotham City et se retrouve impliqué dans un réseau de corruption.",
-    poster_path: "/74xTEgt7R36Fvdz3YKs7oCJRgao.jpg",
+    poster_path: "/3VFI3zbuNhXzx7dIbYdmvBLekyB.jpg",
     backdrop_path: "/b0PlSFdDwbyK0cf5RxwDpaOJQvQ.jpg",
     release_date: "2022-03-01",
     vote_average: 7.7,
@@ -291,7 +291,7 @@ export const MOCK_MOVIES: TMDBMovie[] = [
     title: "The Marvels",
     original_title: "The Marvels",
     overview: "Carol Danvers, alias Captain Marvel, a récupéré son identité des Kree tyranniques et s'est vengée de l'Intelligence Suprême.",
-    poster_path: "/9GBhzXMFjgcZ3FdR9w3bUMMTPFR.jpg",
+    poster_path: "/Ag3D9qXjhwitJLT2WKWQ5WM3hFk.jpg",
     backdrop_path: "/dRYCM84oaVMFPvB1lJEuNfE7OUi.jpg",
     release_date: "2023-11-08",
     vote_average: 6.2,
@@ -311,6 +311,85 @@ export const MOCK_MOVIES: TMDBMovie[] = [
     vote_count: 2400,
     genre_ids: [36, 18, 10752],
     popularity: 1050
+  },
+  // Films d'horreur
+  {
+    id: 13,
+    title: "Smile",
+    original_title: "Smile",
+    overview: "Après avoir été témoin d'un incident bizarre et traumatisant impliquant une patiente, la Dr. Rose Cotter commence à vivre des événements effrayants qu'elle ne peut pas expliquer.",
+    poster_path: "/aPqcQwu4VGEewPhagWNncDbJ9Xp.jpg",
+    backdrop_path: "/olPXihyFeeNvnaD6IOBltgIV1FU.jpg",
+    release_date: "2022-09-23",
+    vote_average: 6.8,
+    vote_count: 3500,
+    genre_ids: [27, 9648, 53],
+    popularity: 1800
+  },
+  {
+    id: 14,
+    title: "M3GAN",
+    original_title: "M3GAN",
+    overview: "Une roboticienne dans une entreprise de jouets construit une poupée grandeur nature alimentée par l'intelligence artificielle qui commence à prendre une vie propre.",
+    poster_path: "/d9nBoowhjiiYc4FBNtQkPY7c11H.jpg",
+    backdrop_path: "/dlrWhn0G3AtxYUx2D9P2bmzcsvF.jpg",
+    release_date: "2022-12-28",
+    vote_average: 7.1,
+    vote_count: 4200,
+    genre_ids: [27, 878, 53],
+    popularity: 2000
+  },
+  {
+    id: 15,
+    title: "Talk to Me",
+    original_title: "Talk to Me",
+    overview: "Lorsqu'un groupe d'amis découvre comment invoquer des esprits en utilisant une main embaumée, ils deviennent accros au frisson de cette nouvelle expérience.",
+    poster_path: "/kdPMUMJzyYAc4roD52qavX0nLIC.jpg",
+    backdrop_path: "/oOqRUTRNeFjW9U7mEGTQGR1VJVp.jpg",
+    release_date: "2023-07-26",
+    vote_average: 7.2,
+    vote_count: 2800,
+    genre_ids: [27, 53],
+    popularity: 1700
+  },
+  {
+    id: 16,
+    title: "Five Nights at Freddy's",
+    original_title: "Five Nights at Freddy's",
+    overview: "Un agent de sécurité en difficulté commence à travailler chez Freddy Fazbear's Pizza. Durant sa première nuit au travail, il réalise que le quart de nuit ne sera pas si facile.",
+    poster_path: "/A4j8S6moJS2zNtRR8oWF08gRnL5.jpg",
+    backdrop_path: "/t5zCBSB5xMDKcDqe91qahCOUYVV.jpg",
+    release_date: "2023-10-25",
+    vote_average: 7.8,
+    vote_count: 5600,
+    genre_ids: [27, 9648],
+    popularity: 2500
+  },
+  {
+    id: 17,
+    title: "The Nun II",
+    original_title: "The Nun II",
+    overview: "1956 - France. Un prêtre est assassiné. Un mal se répand. Sœur Irène est une fois de plus confrontée à la force démoniaque Valak.",
+    poster_path: "/5gzzkR7y3ber1kGV7TZUzDsGEVb.jpg",
+    backdrop_path: "/lmPmCN1lGb50GGWtrxsOiY4t9tC.jpg",
+    release_date: "2023-09-06",
+    vote_average: 6.5,
+    vote_count: 2100,
+    genre_ids: [27, 9648, 53],
+    popularity: 1400
+  },
+  {
+    id: 18,
+    title: "The Exorcist: Believer",
+    original_title: "The Exorcist: Believer",
+    overview: "Depuis que sa femme est morte en donnant naissance à leur fille Angela, Victor Fielding l'élève seul. Quand Angela et son amie disparaissent dans la forêt, leur retour marque le début d'une terreur.",
+    poster_path: "/qVKirUdmoex8SdfUk8WDLCv5gs2.jpg",
+    backdrop_path: "/tGoX05G0V4Jl6WVnpPZAfKkrLNT.jpg",
+    release_date: "2023-10-04",
+    vote_average: 5.6,
+    vote_count: 1800,
+    genre_ids: [27],
+    popularity: 1200
   }
 ];
 

@@ -15,7 +15,7 @@ export default function ForbiddenPage() {
         </p>
         <Link
           href="/dashboard"
-          className="inline-flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-red-500 to-orange-500 rounded-full font-medium text-white"
+          className="inline-flex items-center gap-2 px-8 py-3 bg-red-600 hover:bg-red-700 rounded-xl font-medium text-white transition-colors"
         >
           Retour au dashboard
         </Link>

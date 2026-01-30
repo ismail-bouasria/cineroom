@@ -2,11 +2,11 @@
 
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { Search, Star, Filter, Grid, List, Film, X } from 'lucide-react';
 import { SignInButton, SignedIn, SignedOut, UserButton } from '@clerk/nextjs';
 import { TMDBMovie, TMDB_GENRES } from '@/types';
 import { getImageUrl, MOCK_MOVIES } from '@/lib/tmdb';
+import { MovieImage } from '@/components/common/MovieImage';
 
 // ============================================
 // COMPOSANTS
@@ -24,7 +24,7 @@ const MovieCard = ({ movie, viewMode }: { movie: TMDBMovie; viewMode: 'grid' | '
       >
         <div className="w-24 flex-shrink-0">
           <div className="relative aspect-[2/3] rounded-lg overflow-hidden">
-            <Image
+            <MovieImage
               src={getImageUrl(movie.poster_path, 'w200')}
               alt={movie.title}
               fill
@@ -61,7 +61,7 @@ const MovieCard = ({ movie, viewMode }: { movie: TMDBMovie; viewMode: 'grid' | '
       className="group"
     >
       <div className="relative aspect-[2/3] rounded-xl overflow-hidden mb-3">
-        <Image
+        <MovieImage
           src={getImageUrl(movie.poster_path)}
           alt={movie.title}
           fill
@@ -186,7 +186,7 @@ export default function CataloguePage() {
           <div className="flex items-center gap-4">
             <SignedOut>
               <SignInButton mode="modal">
-                <button className="px-5 py-2 bg-gradient-to-r from-red-500 to-orange-500 rounded-full font-semibold text-sm">
+                <button className="px-5 py-2 bg-red-600 hover:bg-red-700 rounded-xl font-semibold text-sm transition-colors">
                   Connexion
                 </button>
               </SignInButton>
@@ -194,7 +194,7 @@ export default function CataloguePage() {
             <SignedIn>
               <Link
                 href="/book"
-                className="hidden sm:flex items-center gap-2 px-5 py-2 bg-gradient-to-r from-red-500 to-orange-500 rounded-full font-semibold text-sm"
+                className="hidden sm:flex items-center gap-2 px-5 py-2 bg-red-600 hover:bg-red-700 rounded-xl font-semibold text-sm transition-colors"
               >
                 Réserver
               </Link>
@@ -290,9 +290,9 @@ export default function CataloguePage() {
             <div className="mt-4 flex flex-wrap gap-2">
               <button
                 onClick={() => setSelectedGenre(null)}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                   selectedGenre === null
-                    ? 'bg-gradient-to-r from-red-500 to-orange-500'
+                    ? 'bg-red-600 text-white'
                     : 'bg-white/10 hover:bg-white/20'
                 }`}
               >
@@ -302,9 +302,9 @@ export default function CataloguePage() {
                 <button
                   key={genre.id}
                   onClick={() => setSelectedGenre(genre.id)}
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                     selectedGenre === genre.id
-                      ? 'bg-gradient-to-r from-red-500 to-orange-500'
+                      ? 'bg-red-600 text-white'
                       : 'bg-white/10 hover:bg-white/20'
                   }`}
                 >
@@ -336,7 +336,7 @@ export default function CataloguePage() {
                   setSearchQuery('');
                   setSelectedGenre(null);
                 }}
-                className="px-6 py-3 bg-gradient-to-r from-red-500 to-orange-500 rounded-full font-medium"
+                className="px-6 py-3 bg-red-600 hover:bg-red-700 rounded-xl font-medium transition-colors"
               >
                 Réinitialiser les filtres
               </button>

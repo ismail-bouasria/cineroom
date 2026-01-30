@@ -2,11 +2,11 @@
 
 import { SignInButton, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
 import Link from "next/link";
-import Image from "next/image";
 import { useState, useEffect } from "react";
-import { Play, Star, Clock, ChevronLeft, ChevronRight, Ticket, Sparkles, Film, Users } from "lucide-react";
+import { Play, Star, Clock, ChevronLeft, ChevronRight, Ticket, Sparkles, Film, Users, Zap, Rocket, Theater, Smile, Crown, Popcorn, Calendar, Volume2, Heart } from "lucide-react";
 import { TMDBMovie, FORMULAS, TMDB_GENRES } from "@/types";
 import { getImageUrl, getBackdropUrl, MOCK_MOVIES } from "@/lib/tmdb";
+import { MovieImage } from "@/components/common/MovieImage";
 
 // ============================================
 // COMPOSANTS UI INTERNES
@@ -23,7 +23,7 @@ const MovieCard = ({ movie, featured = false }: { movie: TMDBMovie; featured?: b
       }`}
     >
       <div className={`relative ${featured ? "aspect-[2/3]" : "aspect-[2/3]"}`}>
-        <Image
+        <MovieImage
           src={getImageUrl(movie.poster_path, "w500")}
           alt={movie.title}
           fill
@@ -120,41 +120,88 @@ const MovieCarousel = ({ title, movies, icon }: { title: string; movies: TMDBMov
   );
 };
 
-const FormulaCard = ({ formula }: { formula: typeof FORMULAS[0] }) => (
-  <div className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${formula.color} p-6 md:p-8 transition-transform hover:scale-105`}>
-    {formula.popular && (
-      <div className="absolute top-4 right-4 px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-xs font-medium">
-        ⭐ Populaire
+const FormulaCard = ({ formula }: { formula: typeof FORMULAS[0] }) => {
+  const getIcon = (formulaId: string) => {
+    switch (formulaId) {
+      case 'cine-duo': return <Heart size={32} />;
+      case 'cine-team': return <Users size={32} />;
+      case 'cine-groupe': return <Crown size={32} />;
+      default: return <Film size={32} />;
+    }
+  };
+
+  return (
+    <div className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${formula.color} p-1 transition-all hover:scale-[1.02] group`}>
+      {/* Inner card */}
+      <div className="relative bg-[#0a0a0a]/90 rounded-xl p-6 md:p-8 h-full">
+        {formula.popular && (
+          <div className="absolute top-4 right-4 flex items-center gap-1.5 px-3 py-1.5 bg-red-500 rounded-full text-xs font-bold">
+            <Sparkles size={12} />
+            Populaire
+          </div>
+        )}
+        
+        {/* Icon avec cercle gradient */}
+        <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${formula.color} flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}>
+          {getIcon(formula.id)}
+        </div>
+        
+        <h3 className="text-2xl font-bold text-white mb-2">{formula.name}</h3>
+        <p className="text-gray-400 mb-6">{formula.description}</p>
+        
+        {/* Prix mis en avant */}
+        <div className="bg-white/5 rounded-xl p-4 mb-6">
+          <div className="flex items-baseline gap-2">
+            <span className="text-4xl font-black text-white">{formula.basePrice}€</span>
+            <span className="text-gray-400">/ séance</span>
+          </div>
+          <div className="flex items-center gap-2 text-gray-400 text-sm mt-2">
+            <Users size={16} />
+            <span>Jusqu'à {formula.seats} personnes</span>
+          </div>
+        </div>
+        
+        {/* Features */}
+        <ul className="space-y-2 mb-6 text-sm text-gray-300">
+          <li className="flex items-center gap-2">
+            <div className="w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center">
+              <span className="text-green-400 text-xs">✓</span>
+            </div>
+            Salle privée garantie
+          </li>
+          <li className="flex items-center gap-2">
+            <div className="w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center">
+              <span className="text-green-400 text-xs">✓</span>
+            </div>
+            Écran 4K & Son Dolby
+          </li>
+          <li className="flex items-center gap-2">
+            <div className="w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center">
+              <span className="text-green-400 text-xs">✓</span>
+            </div>
+            Consommables disponibles
+          </li>
+        </ul>
+        
+        <SignedIn>
+          <Link
+            href={`/book?formula=${formula.id}`}
+            className={`block w-full py-4 bg-gradient-to-r ${formula.color} hover:opacity-90 rounded-xl text-center font-bold transition-all`}
+          >
+            Choisir cette formule
+          </Link>
+        </SignedIn>
+        <SignedOut>
+          <SignInButton mode="modal">
+            <button className={`w-full py-4 bg-gradient-to-r ${formula.color} hover:opacity-90 rounded-xl font-bold transition-all`}>
+              Choisir cette formule
+            </button>
+          </SignInButton>
+        </SignedOut>
       </div>
-    )}
-    <div className="text-4xl mb-4">{formula.icon}</div>
-    <h3 className="text-2xl font-bold text-white mb-2">{formula.name}</h3>
-    <p className="text-white/80 mb-4">{formula.description}</p>
-    <div className="flex items-baseline gap-2 mb-4">
-      <span className="text-3xl font-bold text-white">{formula.basePrice}€</span>
-      <span className="text-white/60">/ séance</span>
     </div>
-    <div className="flex items-center gap-2 text-white/80 text-sm">
-      <Users size={16} />
-      <span>{formula.seats} places</span>
-    </div>
-    <SignedIn>
-      <Link
-        href={`/book?formula=${formula.id}`}
-        className="mt-6 block w-full py-3 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-xl text-center font-medium transition-colors"
-      >
-        Réserver
-      </Link>
-    </SignedIn>
-    <SignedOut>
-      <SignInButton mode="modal">
-        <button className="mt-6 w-full py-3 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-xl font-medium transition-colors">
-          Réserver
-        </button>
-      </SignInButton>
-    </SignedOut>
-  </div>
-);
+  );
+};
 
 // ============================================
 // PAGE PRINCIPALE
@@ -223,7 +270,7 @@ export default function LandingPage() {
           <div className="flex items-center gap-4">
             <SignedOut>
               <SignInButton mode="modal">
-                <button className="px-6 py-2.5 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 rounded-full font-semibold transition-all hover:scale-105">
+                <button className="px-6 py-2.5 bg-red-600 hover:bg-red-700 rounded-xl font-semibold transition-colors">
                   Connexion
                 </button>
               </SignInButton>
@@ -231,7 +278,7 @@ export default function LandingPage() {
             <SignedIn>
               <Link
                 href="/book"
-                className="hidden md:flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 rounded-full font-semibold transition-all hover:scale-105"
+                className="hidden md:flex items-center gap-2 px-6 py-2.5 bg-red-600 hover:bg-red-700 rounded-xl font-semibold transition-colors"
               >
                 <Ticket size={18} />
                 Réserver
@@ -254,7 +301,7 @@ export default function LandingPage() {
         <section className="relative h-[85vh] min-h-[600px]">
           {/* Background Image */}
           <div className="absolute inset-0">
-            <Image
+            <MovieImage
               src={getBackdropUrl(heroMovie.backdrop_path)}
               alt={heroMovie.title}
               fill
@@ -298,7 +345,7 @@ export default function LandingPage() {
                 <SignedIn>
                   <Link
                     href={`/book?movie=${heroMovie.id}`}
-                    className="flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 rounded-full font-bold text-lg transition-all hover:scale-105 shadow-lg shadow-red-500/30"
+                    className="flex items-center gap-2 px-8 py-4 bg-red-600 hover:bg-red-700 rounded-xl font-bold text-lg transition-colors"
                   >
                     <Ticket size={24} />
                     Réserver une salle
@@ -306,7 +353,7 @@ export default function LandingPage() {
                 </SignedIn>
                 <SignedOut>
                   <SignInButton mode="modal">
-                    <button className="flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 rounded-full font-bold text-lg transition-all hover:scale-105 shadow-lg shadow-red-500/30">
+                    <button className="flex items-center gap-2 px-8 py-4 bg-red-600 hover:bg-red-700 rounded-xl font-bold text-lg transition-colors">
                       <Ticket size={24} />
                       Réserver une salle
                     </button>
@@ -372,7 +419,7 @@ export default function LandingPage() {
           <MovieCarousel
             title="Action"
             movies={actionMovies}
-            icon={<span className="text-2xl">💥</span>}
+            icon={<Zap className="text-yellow-500" size={24} />}
           />
         )}
         
@@ -380,7 +427,7 @@ export default function LandingPage() {
           <MovieCarousel
             title="Science-Fiction"
             movies={sfMovies}
-            icon={<span className="text-2xl">🚀</span>}
+            icon={<Rocket className="text-blue-400" size={24} />}
           />
         )}
         
@@ -388,7 +435,7 @@ export default function LandingPage() {
           <MovieCarousel
             title="Drame"
             movies={dramaMovies}
-            icon={<span className="text-2xl">🎭</span>}
+            icon={<Theater className="text-purple-400" size={24} />}
           />
         )}
         
@@ -396,7 +443,7 @@ export default function LandingPage() {
           <MovieCarousel
             title="Comédie"
             movies={comedyMovies}
-            icon={<span className="text-2xl">😂</span>}
+            icon={<Smile className="text-green-400" size={24} />}
           />
         )}
       </div>
@@ -411,18 +458,37 @@ export default function LandingPage() {
           </div>
 
           <div className="grid md:grid-cols-4 gap-8">
-            {[
-              { icon: "🎬", title: "Salle Privée", desc: "Profitez d'une salle rien que pour vous" },
-              { icon: "🍿", title: "Consommables", desc: "Popcorn, boissons et snacks premium" },
-              { icon: "📅", title: "Réservation Simple", desc: "Choisissez votre créneau en quelques clics" },
-              { icon: "✨", title: "Expérience VIP", desc: "Son Dolby, 4K, confort optimal" },
-            ].map((item, index) => (
-              <div key={index} className="text-center p-6 rounded-2xl bg-white/5 hover:bg-white/10 transition-colors">
-                <div className="text-5xl mb-4">{item.icon}</div>
-                <h3 className="text-xl font-bold mb-2">{item.title}</h3>
-                <p className="text-gray-400">{item.desc}</p>
+            <div className="text-center p-8 rounded-2xl bg-white/5 hover:bg-white/10 transition-all hover:scale-105 border border-transparent hover:border-red-500/20">
+              <div className="w-16 h-16 mx-auto mb-6 bg-red-500/20 rounded-2xl flex items-center justify-center">
+                <Film className="w-8 h-8 text-red-400" />
               </div>
-            ))}
+              <h3 className="text-xl font-bold mb-3">Salle Privée</h3>
+              <p className="text-gray-400">Profitez d'une salle rien que pour vous, sans distraction</p>
+            </div>
+            
+            <div className="text-center p-8 rounded-2xl bg-white/5 hover:bg-white/10 transition-all hover:scale-105 border border-transparent hover:border-red-500/20">
+              <div className="w-16 h-16 mx-auto mb-6 bg-orange-500/20 rounded-2xl flex items-center justify-center">
+                <Popcorn className="w-8 h-8 text-orange-400" />
+              </div>
+              <h3 className="text-xl font-bold mb-3">Consommables</h3>
+              <p className="text-gray-400">Popcorn, boissons et snacks premium à votre disposition</p>
+            </div>
+            
+            <div className="text-center p-8 rounded-2xl bg-white/5 hover:bg-white/10 transition-all hover:scale-105 border border-transparent hover:border-red-500/20">
+              <div className="w-16 h-16 mx-auto mb-6 bg-blue-500/20 rounded-2xl flex items-center justify-center">
+                <Calendar className="w-8 h-8 text-blue-400" />
+              </div>
+              <h3 className="text-xl font-bold mb-3">Réservation Simple</h3>
+              <p className="text-gray-400">Choisissez votre créneau en quelques clics seulement</p>
+            </div>
+            
+            <div className="text-center p-8 rounded-2xl bg-white/5 hover:bg-white/10 transition-all hover:scale-105 border border-transparent hover:border-red-500/20">
+              <div className="w-16 h-16 mx-auto mb-6 bg-purple-500/20 rounded-2xl flex items-center justify-center">
+                <Volume2 className="w-8 h-8 text-purple-400" />
+              </div>
+              <h3 className="text-xl font-bold mb-3">Expérience VIP</h3>
+              <p className="text-gray-400">Son Dolby Atmos, écran 4K, confort optimal garanti</p>
+            </div>
           </div>
         </div>
       </section>
@@ -438,7 +504,7 @@ export default function LandingPage() {
           </p>
           <SignedOut>
             <SignInButton mode="modal">
-              <button className="px-10 py-5 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 rounded-full font-bold text-xl transition-all hover:scale-105 shadow-lg shadow-red-500/30">
+              <button className="px-10 py-5 bg-red-600 hover:bg-red-700 rounded-xl font-bold text-xl transition-colors">
                 Commencer maintenant
               </button>
             </SignInButton>
@@ -446,7 +512,7 @@ export default function LandingPage() {
           <SignedIn>
             <Link
               href="/book"
-              className="inline-flex items-center gap-3 px-10 py-5 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 rounded-full font-bold text-xl transition-all hover:scale-105 shadow-lg shadow-red-500/30"
+              className="inline-flex items-center gap-3 px-10 py-5 bg-red-600 hover:bg-red-700 rounded-xl font-bold text-xl transition-colors"
             >
               <Ticket size={28} />
               Réserver maintenant

@@ -10,6 +10,7 @@ import {
 import { SignInButton, SignedIn, SignedOut, UserButton } from '@clerk/nextjs';
 import { TMDBMovie, FORMULAS, TMDB_GENRES } from '@/types';
 import { getImageUrl, getBackdropUrl, MOCK_MOVIES } from '@/lib/tmdb';
+import { MovieImage } from '@/components/common/MovieImage';
 
 // ============================================
 // COMPOSANTS INTERNES
@@ -21,7 +22,7 @@ const MovieCard = ({ movie }: { movie: TMDBMovie }) => (
     className="group flex-shrink-0 w-[160px] md:w-[180px]"
   >
     <div className="relative aspect-[2/3] rounded-xl overflow-hidden mb-2">
-      <Image
+      <MovieImage
         src={getImageUrl(movie.poster_path)}
         alt={movie.title}
         fill
@@ -126,7 +127,7 @@ export default function MovieDetailPage({ params }: { params: Promise<{ id: stri
           <div className="flex items-center gap-3">
             <SignedOut>
               <SignInButton mode="modal">
-                <button className="px-4 py-2 bg-gradient-to-r from-red-500 to-orange-500 rounded-full text-sm font-medium">
+                <button className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-xl text-sm font-medium transition-colors">
                   Connexion
                 </button>
               </SignInButton>
@@ -141,7 +142,7 @@ export default function MovieDetailPage({ params }: { params: Promise<{ id: stri
       {/* Hero avec backdrop */}
       <section className="relative h-[70vh] min-h-[500px]">
         <div className="absolute inset-0">
-          <Image
+          <MovieImage
             src={getBackdropUrl(movie.backdrop_path)}
             alt={movie.title}
             fill
@@ -157,7 +158,7 @@ export default function MovieDetailPage({ params }: { params: Promise<{ id: stri
             {/* Poster */}
             <div className="hidden md:block w-64 flex-shrink-0">
               <div className="relative aspect-[2/3] rounded-2xl overflow-hidden shadow-2xl">
-                <Image
+                <MovieImage
                   src={getImageUrl(movie.poster_path, 'w500')}
                   alt={movie.title}
                   fill
@@ -208,7 +209,7 @@ export default function MovieDetailPage({ params }: { params: Promise<{ id: stri
                 <SignedIn>
                   <Link
                     href={`/book?movie=${movie.id}`}
-                    className="flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 rounded-full font-bold text-lg transition-all hover:scale-105 shadow-lg shadow-red-500/30"
+                    className="flex items-center gap-2 px-8 py-4 bg-red-600 hover:bg-red-700 rounded-xl font-bold text-lg transition-colors"
                   >
                     <Ticket size={24} />
                     Réserver une salle
@@ -216,7 +217,7 @@ export default function MovieDetailPage({ params }: { params: Promise<{ id: stri
                 </SignedIn>
                 <SignedOut>
                   <SignInButton mode="modal">
-                    <button className="flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 rounded-full font-bold text-lg transition-all hover:scale-105 shadow-lg shadow-red-500/30">
+                    <button className="flex items-center gap-2 px-8 py-4 bg-red-600 hover:bg-red-700 rounded-xl font-bold text-lg transition-colors">
                       <Ticket size={24} />
                       Réserver une salle
                     </button>

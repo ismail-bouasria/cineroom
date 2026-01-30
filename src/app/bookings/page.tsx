@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
 import { Calendar, Clock, Film, ArrowLeft, Ticket, Check, X, Edit, Filter, Trash2 } from 'lucide-react';
 import { Booking, FORMULAS, ReservationStatus } from '@/types';
@@ -10,13 +9,14 @@ import { useApiState } from '@/lib/hooks';
 import { bookingsApi, isLoading, hasError, hasData } from '@/lib/api-client';
 import { getImageUrl } from '@/lib/tmdb';
 import { Suspense } from 'react';
+import { MovieImage } from '@/components/common/MovieImage';
 
 // ============================================
 // COMPOSANTS
 // ============================================
 
 const statusConfig: Record<ReservationStatus, { label: string; color: string; bg: string }> = {
-  active: { label: 'Active', color: 'text-green-400', bg: 'bg-green-500/20' },
+  active: { label: 'Planifiée', color: 'text-green-400', bg: 'bg-green-500/20' },
   modifiee: { label: 'Modifiée', color: 'text-yellow-400', bg: 'bg-yellow-500/20' },
   annulee: { label: 'Annulée', color: 'text-red-400', bg: 'bg-red-500/20' },
   passee: { label: 'Passée', color: 'text-gray-400', bg: 'bg-gray-500/20' }
@@ -56,23 +56,12 @@ const BookingCard = ({
   };
 
   return (
-    <div className="bg-white/5 rounded-2xl overflow-hidden hover:bg-white/10 transition-colors relative">
-      {/* Bouton Supprimer en haut à droite (seulement pour les réservations annulées) */}
-      {canDelete && (
-        <button
-          onClick={() => onDelete(booking.id)}
-          className="absolute top-3 right-3 z-10 p-2 bg-red-500/20 hover:bg-red-500/40 text-red-400 hover:text-red-300 rounded-lg transition-colors"
-          title="Supprimer définitivement"
-        >
-          <Trash2 className="w-4 h-4" />
-        </button>
-      )}
-      
+    <div className="bg-white/5 rounded-2xl overflow-hidden hover:bg-white/10 transition-colors">
       <div className="flex flex-col sm:flex-row">
         {/* Poster */}
         <div className="w-full sm:w-32 h-40 sm:h-auto relative flex-shrink-0">
           {booking.moviePoster ? (
-            <Image
+            <MovieImage
               src={getImageUrl(booking.moviePoster, 'w300')}
               alt={booking.movieTitle}
               fill
@@ -138,22 +127,37 @@ const BookingCard = ({
           )}
 
           {/* Actions */}
-          {canModify && (
-            <div className="flex items-center gap-3 mt-4 pt-4 border-t border-white/10">
-              <Link
-                href={`/bookings/${booking.id}/edit`}
-                className="flex items-center gap-1.5 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-medium transition-colors"
-              >
-                <Edit className="w-4 h-4" />
-                Modifier
-              </Link>
-              <button
-                onClick={() => onCancel(booking.id)}
-                className="flex items-center gap-1.5 px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg text-sm font-medium transition-colors"
-              >
-                <X className="w-4 h-4" />
-                Annuler
-              </button>
+          {(canModify || canDelete) && (
+            <div className="flex items-center justify-between gap-3 mt-4 pt-4 border-t border-white/10">
+              {canModify && (
+                <div className="flex items-center gap-3">
+                  <Link
+                    href={`/bookings/${booking.id}/edit`}
+                    className="flex items-center gap-1.5 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-medium transition-colors"
+                  >
+                    <Edit className="w-4 h-4" />
+                    Modifier
+                  </Link>
+                  <button
+                    onClick={() => onCancel(booking.id)}
+                    className="flex items-center gap-1.5 px-4 py-2 bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 rounded-lg text-sm font-medium transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                    Annuler
+                  </button>
+                </div>
+              )}
+              
+              {/* Bouton Supprimer - visible uniquement pour les réservations annulées */}
+              {canDelete && (
+                <button
+                  onClick={() => onDelete(booking.id)}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-bold transition-colors shadow-lg shadow-red-500/25 ml-auto"
+                >
+                  <Trash2 className="w-5 h-5" />
+                  Supprimer définitivement
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -322,14 +326,21 @@ function BookingsContent() {
   const allBookings = hasData(bookingsState) ? bookingsState.data : [];
   
   const filteredBookings = allBookings.filter(booking => {
-    const isUpcoming = new Date(booking.date) >= new Date();
+    // Créer la date/heure complète de la réservation pour une comparaison précise
+    const bookingDateTime = new Date(`${booking.date}T${booking.time}`);
+    const now = new Date();
+    const isUpcoming = bookingDateTime >= now;
     
     if (filter === 'upcoming' && !isUpcoming) return false;
     if (filter === 'past' && isUpcoming) return false;
     if (statusFilter !== 'all' && booking.status !== statusFilter) return false;
     
     return true;
-  }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }).sort((a, b) => {
+    const dateTimeA = new Date(`${a.date}T${a.time}`);
+    const dateTimeB = new Date(`${b.date}T${b.time}`);
+    return dateTimeB.getTime() - dateTimeA.getTime();
+  });
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white">
@@ -365,7 +376,7 @@ function BookingsContent() {
                 onClick={() => setFilter(f)}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                   filter === f 
-                    ? 'bg-gradient-to-r from-red-500 to-orange-500' 
+                    ? 'bg-red-600' 
                     : 'hover:bg-white/10'
                 }`}
               >
@@ -418,7 +429,7 @@ function BookingsContent() {
             </p>
             <Link
               href="/book"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-red-500 to-orange-500 rounded-full font-medium"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-red-600 hover:bg-red-700 rounded-xl font-medium transition-colors"
             >
               <Ticket className="w-5 h-5" />
               Réserver maintenant
