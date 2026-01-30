@@ -178,6 +178,7 @@ export const BookingSchema = z.object({
   formula: BookingFormulaEnum,
   date: z.string(),
   time: z.string(),
+  roomNumber: z.number().int().min(1).max(7).optional(),
   consumables: z.array(z.object({
     consumableId: z.string(),
     quantity: z.number().int().positive()
@@ -201,6 +202,7 @@ export const CreateBookingInputSchema = z.object({
   formula: BookingFormulaEnum,
   date: z.string().min(1, "La date est requise"),
   time: z.string().min(1, "L'heure est requise"),
+  roomNumber: z.number().int().min(1).max(7),
   consumables: z.array(z.object({
     consumableId: z.string(),
     quantity: z.number().int().positive()
@@ -216,6 +218,7 @@ export type CreateBookingInput = z.infer<typeof CreateBookingInputSchema>;
 export const UpdateBookingInputSchema = z.object({
   date: z.string().optional(),
   time: z.string().optional(),
+  roomNumber: z.number().int().min(1).max(7).optional(),
   formula: BookingFormulaEnum.optional(),
   consumables: z.array(z.object({
     consumableId: z.string(),
