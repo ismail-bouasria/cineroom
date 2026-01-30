@@ -15,6 +15,7 @@ const transporter = nodemailer.createTransport({
 });
 
 const FROM_EMAIL = process.env.GMAIL_USER || 'noreply@cineroom.fr';
+const FROM_NAME = 'CineRoom'; // Nom affiché au lieu de l'adresse Gmail
 const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || 'support@cineroom.fr';
 
 // ============================================
@@ -396,7 +397,7 @@ export async function sendBookingEmail(
 
     // Envoyer l'email avec Nodemailer
     const info = await transporter.sendMail({
-      from: `CineRoom <${FROM_EMAIL}>`,
+      from: `${FROM_NAME} <${FROM_EMAIL}>`,
       to: data.userEmail,
       subject: emailContent.subject,
       html: emailContent.html,
