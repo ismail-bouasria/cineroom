@@ -1,9 +1,61 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
+import { useAuth } from "@clerk/nextjs";
 import type { ApiResponse } from "@/types";
 import { createInitialState } from "@/lib/api-client";
 import { z } from "zod";
+
+/**
+ * Hook pour synchroniser l'utilisateur Clerk avec notre base de données
+ * À utiliser dans le layout ou les pages authentifiées
+ */
+export function useUserSync() {
+  const { isSignedIn, isLoaded } = useAuth();
+  const [user, setUser] = useState<{
+    id: string;
+    email: string;
+    firstName?: string;
+    lastName?: string;
+    role: string;
+  } | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+
+    if (!isSignedIn) {
+      setUser(null);
+      setIsLoading(false);
+      return;
+    }
+
+    const syncUser = async () => {
+      try {
+        setIsLoading(true);
+        const response = await fetch('/api/user/sync', { method: 'POST' });
+        const data = await response.json();
+        
+        if (data.success && data.user) {
+          setUser(data.user);
+          setError(null);
+        } else if (data.error) {
+          setError(data.error);
+        }
+      } catch (err) {
+        console.error('Erreur sync utilisateur:', err);
+        setError('Erreur de synchronisation');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    syncUser();
+  }, [isSignedIn, isLoaded]);
+
+  return { user, isLoading, error, isAdmin: user?.role === 'admin' };
+}
 
 /**
  * Hook générique pour gérer les appels API avec les 5 états

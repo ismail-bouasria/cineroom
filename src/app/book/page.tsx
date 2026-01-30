@@ -13,6 +13,7 @@ import { TMDBMovie, FORMULAS, FormulaConfig, CONSUMABLES } from '@/types';
 import { getImageUrl, MOCK_MOVIES } from '@/lib/tmdb';
 import { Calendar } from '@/components/booking/Calendar';
 import { ConsumableSelector, ConsumableSelection, ConsumableSummary } from '@/components/booking/ConsumableSelector';
+import { TimeSlotModal } from '@/components/booking/TimeSlotModal';
 import { bookingsApi } from '@/lib/api-client';
 
 // ============================================
@@ -24,6 +25,7 @@ interface BookingState {
   formula: FormulaConfig | null;
   date: string | null;
   time: string | null;
+  roomNumber: number | null;
   consumables: ConsumableSelection[];
 }
 
@@ -196,14 +198,44 @@ function FormulaSelection({
 function DateTimeSelection({
   selectedDate,
   selectedTime,
+  selectedRoomNumber,
+  selectedFormula,
   onDateSelect,
   onTimeSelect
 }: {
   selectedDate: string | null;
   selectedTime: string | null;
+  selectedRoomNumber: number | null;
+  selectedFormula: string | null;
   onDateSelect: (date: string) => void;
-  onTimeSelect: (time: string) => void;
+  onTimeSelect: (time: string, roomNumber: number) => void;
 }) {
+  const [showTimeModal, setShowTimeModal] = useState(false);
+  const [tempDate, setTempDate] = useState<string | null>(null);
+
+  const handleDateSelect = (date: string) => {
+    setTempDate(date);
+    onDateSelect(date);
+    // Ouvrir le modal pour choisir l'heure
+    if (selectedFormula) {
+      setShowTimeModal(true);
+    }
+  };
+
+  const handleTimeSelect = (time: string, roomNumber: number) => {
+    onTimeSelect(time, roomNumber);
+    setShowTimeModal(false);
+  };
+
+  const getFormulaDisplayName = (formula: string): string => {
+    switch (formula) {
+      case 'cine_duo': return 'CinéDuo';
+      case 'cine_team': return 'CinéTeam';
+      case 'cine_groupe': return 'CinéGroupe';
+      default: return formula;
+    }
+  };
+
   return (
     <div className="space-y-6 pb-24">
       <div>
@@ -211,14 +243,75 @@ function DateTimeSelection({
         <p className="text-gray-400">Sélectionnez le créneau qui vous convient</p>
       </div>
 
+      {!selectedFormula && (
+        <div className="bg-orange-500/10 border border-orange-500/30 rounded-xl p-4 mb-4">
+          <p className="text-orange-400 text-sm">
+            ⚠️ Veuillez d&apos;abord choisir une formule pour voir les disponibilités
+          </p>
+        </div>
+      )}
+
       <div className="max-w-2xl mx-auto bg-white/5 rounded-2xl p-6">
         <Calendar
           selectedDate={selectedDate}
           selectedTime={selectedTime}
-          onDateSelect={onDateSelect}
-          onTimeSelect={onTimeSelect}
+          onDateSelect={handleDateSelect}
+          showTimeSlots={false}
         />
+        
+        {/* Info sur la sélection */}
+        {selectedDate && !selectedTime && selectedFormula && (
+          <div className="mt-4 p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl">
+            <p className="text-blue-400 text-sm text-center">
+              Cliquez sur la date sélectionnée pour choisir un créneau horaire
+            </p>
+            <button
+              onClick={() => setShowTimeModal(true)}
+              className="w-full mt-2 py-2 px-4 bg-red-500 hover:bg-red-600 rounded-lg text-white font-medium transition-colors"
+            >
+              Voir les créneaux disponibles
+            </button>
+          </div>
+        )}
+
+        {/* Résumé de la sélection */}
+        {selectedDate && selectedTime && selectedRoomNumber && (
+          <div className="mt-4 p-4 bg-green-500/10 border border-green-500/30 rounded-xl flex items-center justify-between">
+            <div>
+              <p className="text-green-400 font-medium">Créneau sélectionné</p>
+              <p className="text-white text-lg">
+                {new Date(selectedDate).toLocaleDateString('fr-FR', { 
+                  weekday: 'long', 
+                  day: 'numeric', 
+                  month: 'long' 
+                })} à {selectedTime.replace(':', 'h')}
+              </p>
+              <p className="text-gray-400 text-sm">
+                {getFormulaDisplayName(selectedFormula || '')} - Salle {selectedRoomNumber}
+              </p>
+            </div>
+            <button
+              onClick={() => setShowTimeModal(true)}
+              className="py-2 px-4 bg-white/10 hover:bg-white/20 rounded-lg text-white text-sm transition-colors"
+            >
+              Modifier
+            </button>
+          </div>
+        )}
       </div>
+
+      {/* Time Slot Modal */}
+      {selectedFormula && (
+        <TimeSlotModal
+          isOpen={showTimeModal}
+          onClose={() => setShowTimeModal(false)}
+          selectedDate={tempDate || selectedDate || ''}
+          selectedFormula={selectedFormula}
+          onSelectTimeSlot={handleTimeSelect}
+          currentTime={selectedTime}
+          currentRoom={selectedRoomNumber}
+        />
+      )}
     </div>
   );
 }
@@ -339,6 +432,9 @@ function BookingSummary({
                 <p className="text-gray-400 flex items-center gap-2">
                   <Clock size={14} />
                   <span>{booking.time}</span>
+                  {booking.roomNumber && booking.formula && (
+                    <span>• {booking.formula.name} {booking.roomNumber}</span>
+                  )}
                 </p>
               </div>
             </div>
@@ -390,6 +486,7 @@ function BookingContent() {
     formula: null,
     date: null,
     time: null,
+    roomNumber: null,
     consumables: []
   });
 
@@ -421,7 +518,7 @@ function BookingContent() {
     switch (currentStep) {
       case 'movie': return !!booking.movie;
       case 'formula': return !!booking.formula;
-      case 'datetime': return !!booking.date && !!booking.time;
+      case 'datetime': return !!booking.date && !!booking.time && !!booking.roomNumber;
       case 'consumables': return true;
       case 'summary': return true;
     }
@@ -447,7 +544,7 @@ function BookingContent() {
       return;
     }
 
-    if (!booking.movie || !booking.formula || !booking.date || !booking.time) {
+    if (!booking.movie || !booking.formula || !booking.date || !booking.time || !booking.roomNumber) {
       return;
     }
 
@@ -462,6 +559,7 @@ function BookingContent() {
         formula: booking.formula.id,
         date: booking.date,
         time: booking.time,
+        roomNumber: booking.roomNumber,
         consumables: booking.consumables,
       });
 
@@ -550,8 +648,10 @@ function BookingContent() {
           <DateTimeSelection
             selectedDate={booking.date}
             selectedTime={booking.time}
+            selectedRoomNumber={booking.roomNumber}
+            selectedFormula={booking.formula?.id || null}
             onDateSelect={(date) => setBooking(prev => ({ ...prev, date }))}
-            onTimeSelect={(time) => setBooking(prev => ({ ...prev, time }))}
+            onTimeSelect={(time, roomNumber) => setBooking(prev => ({ ...prev, time, roomNumber }))}
           />
         )}
 

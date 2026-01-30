@@ -145,6 +145,9 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
                   <span className="text-xl">{formula?.icon}</span>
                   <span className="font-bold">{formula?.name}</span>
                   <span className="text-white/70">• {formula?.seats} places</span>
+                  {booking.roomNumber && (
+                    <span className="text-white/70">• Salle {booking.roomNumber}</span>
+                  )}
                 </div>
               </div>
             </div>

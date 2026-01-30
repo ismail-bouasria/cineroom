@@ -74,6 +74,7 @@ export const typeDefs = /* GraphQL */ `
     formula: String!
     date: String!
     time: String!
+    roomNumber: Int!
     totalPrice: Float!
     status: ReservationStatus!
     specialRequests: String
@@ -115,6 +116,34 @@ export const typeDefs = /* GraphQL */ `
   }
 
   # ============================================
+  # AVAILABILITY TYPES
+  # ============================================
+
+  type FormulaAvailability {
+    formula: String!
+    totalRooms: Int!
+    bookedRooms: Int!
+    availableRooms: Int!
+    isAvailable: Boolean!
+  }
+
+  type SlotAvailability {
+    date: String!
+    time: String!
+    formulas: [FormulaAvailability!]!
+    totalAvailableRooms: Int!
+    isCompletelyBooked: Boolean!
+  }
+
+  type TimeSlotInfo {
+    time: String!
+    isAvailable: Boolean!
+    availableRooms: Int!
+    totalRooms: Int!
+    bookedRooms: [Int!]!
+  }
+
+  # ============================================
   # INPUTS
   # ============================================
 
@@ -130,6 +159,7 @@ export const typeDefs = /* GraphQL */ `
     formula: String!
     date: String!
     time: String!
+    roomNumber: Int!
     consumables: [ConsumableInput!]
     specialRequests: String
   }
@@ -137,6 +167,7 @@ export const typeDefs = /* GraphQL */ `
   input UpdateBookingInput {
     date: String
     time: String
+    roomNumber: Int
     formula: String
     consumables: [ConsumableInput!]
     specialRequests: String
@@ -202,7 +233,16 @@ export const typeDefs = /* GraphQL */ `
     consumable(id: ID!): Consumable
 
     # Availability check
-    checkAvailability(date: String!, time: String!): Boolean!
+    checkAvailability(date: String!, time: String!, formula: String): Boolean!
+    
+    # Detailed availability for a slot
+    getSlotAvailability(date: String!, time: String!): SlotAvailability!
+    
+    # Available time slots for a date
+    getAvailableTimeSlots(date: String!, formula: String!): [TimeSlotInfo!]!
+    
+    # Check if user can modify/cancel a booking (2h rule)
+    canModifyBooking(bookingId: ID!): Boolean!
   }
 
   # ============================================

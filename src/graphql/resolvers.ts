@@ -27,6 +27,21 @@ function formatDate(date: Date): string {
   return date.toISOString();
 }
 
+// ============================================
+// CONSTANTES DE CONFIGURATION
+// ============================================
+
+// 7 salles disponibles par formule
+const ROOMS_PER_FORMULA = 7;
+
+// Créneaux horaires disponibles
+const TIME_SLOTS = [
+  '10:00', '12:00', '14:00', '16:00', '18:00', '20:00', '22:00'
+];
+
+// Liste des formules
+const FORMULA_IDS = ['cine_duo', 'cine_team', 'cine_groupe'];
+
 export const resolvers = {
   // ============================================
   // QUERIES
@@ -305,10 +320,23 @@ export const resolvers = {
     // ---- Availability Check ----
     checkAvailability: async (
       _: unknown,
-      { date, time }: { date: string; time: string },
+      { date, time, formula }: { date: string; time: string; formula?: string },
       ctx: GraphQLContext
     ) => {
-      // Compter les réservations pour ce créneau
+      // Si une formule est spécifiée, vérifier pour cette formule uniquement
+      if (formula) {
+        const bookingsCount = await ctx.prisma.booking.count({
+          where: {
+            date,
+            time,
+            formula,
+            status: { in: ['active', 'modifiee'] },
+          },
+        });
+        return bookingsCount < ROOMS_PER_FORMULA;
+      }
+      
+      // Sinon, vérifier si au moins une formule a une salle disponible
       const bookingsCount = await ctx.prisma.booking.count({
         where: {
           date,
@@ -317,9 +345,127 @@ export const resolvers = {
         },
       });
 
-      // Limiter à 5 salles par créneau (configurable)
-      const MAX_ROOMS = 5;
-      return bookingsCount < MAX_ROOMS;
+      // Total de salles = 7 salles par formule * 3 formules = 21 salles
+      const totalRooms = ROOMS_PER_FORMULA * FORMULA_IDS.length;
+      return bookingsCount < totalRooms;
+    },
+
+    // ---- Detailed Slot Availability ----
+    getSlotAvailability: async (
+      _: unknown,
+      { date, time }: { date: string; time: string },
+      ctx: GraphQLContext
+    ) => {
+      // Récupérer les réservations groupées par formule
+      const bookingsByFormula = await ctx.prisma.booking.groupBy({
+        by: ['formula'],
+        where: {
+          date,
+          time,
+          status: { in: ['active', 'modifiee'] },
+        },
+        _count: true,
+      });
+
+      const formulaMap = new Map(bookingsByFormula.map(b => [b.formula, b._count]));
+      
+      const formulas = FORMULA_IDS.map(formulaId => {
+        const bookedRooms = formulaMap.get(formulaId) || 0;
+        const availableRooms = ROOMS_PER_FORMULA - bookedRooms;
+        return {
+          formula: formulaId,
+          totalRooms: ROOMS_PER_FORMULA,
+          bookedRooms,
+          availableRooms,
+          isAvailable: availableRooms > 0,
+        };
+      });
+
+      const totalAvailableRooms = formulas.reduce((sum, f) => sum + f.availableRooms, 0);
+
+      return {
+        date,
+        time,
+        formulas,
+        totalAvailableRooms,
+        isCompletelyBooked: totalAvailableRooms === 0,
+      };
+    },
+
+    // ---- Available Time Slots for a Date ----
+    getAvailableTimeSlots: async (
+      _: unknown,
+      { date, formula }: { date: string; formula: string },
+      ctx: GraphQLContext
+    ) => {
+      // Récupérer toutes les réservations pour cette date et formule avec les numéros de salle
+      const bookings = await ctx.prisma.booking.findMany({
+        where: {
+          date,
+          formula,
+          status: { in: ['active', 'modifiee'] },
+        },
+        select: {
+          time: true,
+          roomNumber: true,
+        },
+      });
+
+      // Grouper les salles réservées par créneau
+      const bookingsByTime = new Map<string, number[]>();
+      bookings.forEach(b => {
+        const rooms = bookingsByTime.get(b.time) || [];
+        rooms.push(b.roomNumber);
+        bookingsByTime.set(b.time, rooms);
+      });
+
+      return TIME_SLOTS.map(time => {
+        const bookedRoomNumbers = bookingsByTime.get(time) || [];
+        const availableRooms = ROOMS_PER_FORMULA - bookedRoomNumbers.length;
+        return {
+          time,
+          isAvailable: availableRooms > 0,
+          availableRooms,
+          totalRooms: ROOMS_PER_FORMULA,
+          bookedRooms: bookedRoomNumbers,
+        };
+      });
+    },
+
+    // ---- Can Modify Booking (2h Rule) ----
+    canModifyBooking: async (
+      _: unknown,
+      { bookingId }: { bookingId: string },
+      ctx: GraphQLContext
+    ) => {
+      requireAuth(ctx);
+
+      const booking = await ctx.prisma.booking.findUnique({ where: { id: bookingId } });
+      
+      if (!booking) {
+        throw new Error('Réservation introuvable.');
+      }
+      
+      // Vérifier les permissions
+      if (booking.userId !== ctx.userId && !ctx.isAdmin) {
+        throw new Error('Vous n\'avez pas accès à cette réservation.');
+      }
+
+      // Les admins peuvent toujours modifier
+      if (ctx.isAdmin) return true;
+
+      // Vérifier si la réservation est déjà annulée ou passée
+      if (booking.status === 'annulee' || booking.status === 'passee') {
+        return false;
+      }
+
+      // Vérifier la condition 2h avant la séance
+      const bookingDateTime = new Date(`${booking.date}T${booking.time}`);
+      const now = new Date();
+      const twoHoursInMs = 2 * 60 * 60 * 1000;
+      const timeUntilBooking = bookingDateTime.getTime() - now.getTime();
+      
+      return timeUntilBooking >= twoHoursInMs;
     },
   },
 
@@ -338,6 +484,7 @@ export const resolvers = {
           formula: string;
           date: string;
           time: string;
+          roomNumber: number;
           consumables?: { consumableId: string; quantity: number }[];
           specialRequests?: string;
         };
@@ -346,15 +493,28 @@ export const resolvers = {
     ) => {
       requireAuth(ctx);
 
-      // Vérifier la disponibilité
-      const isAvailable = await resolvers.Query.checkAvailability(
-        null,
-        { date: input.date, time: input.time },
-        ctx
-      );
+      // Vérifier que l'utilisateur existe bien dans la base de données
+      const userExists = await ctx.prisma.user.findUnique({
+        where: { id: ctx.userId },
+      });
 
-      if (!isAvailable) {
-        throw new Error('Ce créneau n\'est plus disponible.');
+      if (!userExists) {
+        throw new Error('Utilisateur non trouvé dans la base de données. Veuillez vous reconnecter.');
+      }
+
+      // Vérifier que la salle spécifique est disponible
+      const existingBooking = await ctx.prisma.booking.findFirst({
+        where: {
+          date: input.date,
+          time: input.time,
+          formula: input.formula,
+          roomNumber: input.roomNumber,
+          status: { in: ['active', 'modifiee'] },
+        },
+      });
+
+      if (existingBooking) {
+        throw new Error(`La salle ${input.roomNumber} est déjà réservée pour ce créneau. Veuillez choisir une autre salle.`);
       }
 
       // Calculer le prix total
@@ -370,6 +530,7 @@ export const resolvers = {
           formula: input.formula,
           date: input.date,
           time: input.time,
+          roomNumber: input.roomNumber,
           totalPrice,
           specialRequests: input.specialRequests,
           status: 'active',
@@ -421,6 +582,18 @@ export const resolvers = {
         throw new Error('Cette réservation ne peut plus être modifiée.');
       }
 
+      // Vérifier la condition 2h avant la séance (sauf pour les admins)
+      if (!ctx.isAdmin) {
+        const bookingDateTime = new Date(`${existing.date}T${existing.time}`);
+        const now = new Date();
+        const twoHoursInMs = 2 * 60 * 60 * 1000;
+        const timeUntilBooking = bookingDateTime.getTime() - now.getTime();
+        
+        if (timeUntilBooking < twoHoursInMs) {
+          throw new Error('Impossible de modifier une réservation moins de 2 heures avant la séance.');
+        }
+      }
+
       // Recalculer le prix si la formule ou les consommables changent
       const newFormula = input.formula || existing.formula;
       let totalPrice = existing.totalPrice;
@@ -430,21 +603,23 @@ export const resolvers = {
       }
 
       // Si on change la date/heure, vérifier la disponibilité
-      if (input.date || input.time) {
+      if (input.date || input.time || input.formula) {
         const newDate = input.date || existing.date;
         const newTime = input.time || existing.time;
+        const checkFormula = input.formula || existing.formula;
         
         const bookingsCount = await ctx.prisma.booking.count({
           where: {
             date: newDate,
             time: newTime,
+            formula: checkFormula,
             status: { in: ['active', 'modifiee'] },
             id: { not: id }, // Exclure la réservation actuelle
           },
         });
 
-        if (bookingsCount >= 5) {
-          throw new Error('Ce créneau n\'est plus disponible.');
+        if (bookingsCount >= ROOMS_PER_FORMULA) {
+          throw new Error('Ce créneau n\'est plus disponible pour cette formule.');
         }
       }
 
@@ -488,7 +663,13 @@ export const resolvers = {
     ) => {
       requireAuth(ctx);
 
-      const existing = await ctx.prisma.booking.findUnique({ where: { id } });
+      const existing = await ctx.prisma.booking.findUnique({ 
+        where: { id },
+        include: {
+          consumables: { include: { consumable: true } },
+          user: true,
+        },
+      });
       
       if (!existing) {
         throw new Error('Réservation introuvable.');
@@ -506,16 +687,33 @@ export const resolvers = {
         throw new Error('Une réservation passée ne peut pas être annulée.');
       }
 
-      const booking = await ctx.prisma.booking.update({
-        where: { id },
-        data: { status: 'annulee' },
-        include: {
-          consumables: { include: { consumable: true } },
-          user: true,
-        },
+      // Vérifier la condition 2h avant la séance (sauf pour les admins)
+      if (!ctx.isAdmin) {
+        const bookingDateTime = new Date(`${existing.date}T${existing.time}`);
+        const now = new Date();
+        const twoHoursInMs = 2 * 60 * 60 * 1000;
+        const timeUntilBooking = bookingDateTime.getTime() - now.getTime();
+        
+        if (timeUntilBooking < twoHoursInMs) {
+          throw new Error('Impossible d\'annuler une réservation moins de 2 heures avant la séance.');
+        }
+      }
+
+      // Supprimer les consommables associés d'abord
+      await ctx.prisma.bookingConsumable.deleteMany({
+        where: { bookingId: id },
       });
 
-      return booking;
+      // Supprimer la réservation
+      await ctx.prisma.booking.delete({
+        where: { id },
+      });
+
+      // Retourner les infos de la réservation supprimée pour l'email
+      return {
+        ...existing,
+        status: 'annulee' as const,
+      };
     },
 
     // ---- Admin Mutations ----

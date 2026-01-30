@@ -8,9 +8,9 @@ import { startServerAndCreateNextHandler } from '@as-integrations/next';
 import { NextRequest } from 'next/server';
 import { typeDefs } from '@/graphql/schema';
 import { resolvers } from '@/graphql/resolvers';
-import { createContext } from '@/graphql/context';
+import { createContext, GraphQLContext } from '@/graphql/context';
 
-const server = new ApolloServer({
+const server = new ApolloServer<GraphQLContext>({
   typeDefs,
   resolvers,
   introspection: process.env.NODE_ENV !== 'production', // GraphQL Playground en dev
@@ -31,7 +31,7 @@ const server = new ApolloServer({
   },
 });
 
-const handler = startServerAndCreateNextHandler<NextRequest>(server, {
+const handler = startServerAndCreateNextHandler(server, {
   context: async () => createContext(),
 });
 

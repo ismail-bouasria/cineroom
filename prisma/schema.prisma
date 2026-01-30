@@ -52,6 +52,7 @@ model Booking {
   formula         String   // "cine-duo" | "cine-team" | "cine-groupe"
   date            String   // Format YYYY-MM-DD
   time            String   // Format HH:mm
+  roomNumber      Int      @default(1) // Numéro de salle (1-7)
   totalPrice      Float
   status          String   @default("active") // "active" | "modifiee" | "annulee" | "passee"
   specialRequests String?

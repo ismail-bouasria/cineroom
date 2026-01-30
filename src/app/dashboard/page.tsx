@@ -4,9 +4,9 @@ import { useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useUser, SignOutButton } from '@clerk/nextjs';
-import { Calendar, Film, Clock, ArrowRight, Ticket, Plus, Star, Users, Home, LogOut, User } from 'lucide-react';
+import { Calendar, Film, Clock, ArrowRight, Ticket, Plus, Star, Users, Home, LogOut, User, Shield } from 'lucide-react';
 import { Booking, FORMULAS } from '@/types';
-import { useApiState } from '@/lib/hooks';
+import { useApiState, useUserSync } from '@/lib/hooks';
 import { bookingsApi, isLoading, hasError, hasData } from '@/lib/api-client';
 import { getImageUrl } from '@/lib/tmdb';
 
@@ -115,6 +115,7 @@ const BookingCard = ({ booking }: { booking: Booking }) => {
 
 export default function DashboardPage() {
   const { user } = useUser();
+  const { user: dbUser, isAdmin } = useUserSync(); // Synchronise l'utilisateur avec la DB
   const [bookingsState, setBookingsState] = useApiState<Booking[]>();
 
   useEffect(() => {
@@ -159,6 +160,12 @@ export default function DashboardPage() {
             <Link href="/bookings" className="text-gray-400 hover:text-white transition-colors">
               Réservations
             </Link>
+            {isAdmin && (
+              <Link href="/admin" className="flex items-center gap-1 text-amber-400 hover:text-amber-300 transition-colors">
+                <Shield className="w-4 h-4" />
+                Admin
+              </Link>
+            )}
             <Link href="/profile" className="text-gray-400 hover:text-white transition-colors">
               <User className="w-5 h-5" />
             </Link>

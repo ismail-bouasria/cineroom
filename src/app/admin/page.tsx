@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { Booking, FORMULAS, ReservationStatus } from '@/types';
 import { useApiState } from '@/lib/hooks';
-import { statsApi, bookingsApi, DashboardStats, isLoading, hasData, hasError } from '@/lib/api-client';
+import { statsApi, adminApi, DashboardStats, isLoading, hasData, hasError } from '@/lib/api-client';
 import { getImageUrl } from '@/lib/tmdb';
 
 // ============================================
@@ -149,7 +149,7 @@ export default function AdminDashboardPage() {
     const fetchData = async () => {
       const [stats, bookings] = await Promise.all([
         statsApi.getDashboard(),
-        bookingsApi.getAll()
+        adminApi.getAllBookings()
       ]);
       setStatsState(stats);
       setBookingsState(bookings);
@@ -158,14 +158,15 @@ export default function AdminDashboardPage() {
   }, [setStatsState, setBookingsState]);
 
   const handleConfirm = async (id: string) => {
-    // Dans une vraie app, appeler l'API pour confirmer
-    console.log('Confirmer:', id);
+    await adminApi.updateBookingStatus(id, 'active');
+    const result = await adminApi.getAllBookings();
+    setBookingsState(result);
   };
 
   const handleCancel = async (id: string) => {
     if (confirm('Annuler cette réservation ?')) {
-      await bookingsApi.cancel(id);
-      const result = await bookingsApi.getAll();
+      await adminApi.updateBookingStatus(id, 'annulee');
+      const result = await adminApi.getAllBookings();
       setBookingsState(result);
     }
   };

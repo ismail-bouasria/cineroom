@@ -170,6 +170,40 @@ export default function EditBookingPage({ params }: { params: Promise<{ id: stri
     );
   }
 
+  // Vérifier la condition 2h avant la séance
+  const bookingDateTime = new Date(`${booking.date}T${booking.time}`);
+  const now = new Date();
+  const twoHoursInMs = 2 * 60 * 60 * 1000;
+  const timeUntilBooking = bookingDateTime.getTime() - now.getTime();
+  const isWithinTwoHours = timeUntilBooking >= 0 && timeUntilBooking < twoHoursInMs;
+
+  if (isWithinTwoHours) {
+    const hoursRemaining = Math.floor(timeUntilBooking / (1000 * 60 * 60));
+    const minutesRemaining = Math.floor((timeUntilBooking % (1000 * 60 * 60)) / (1000 * 60));
+    
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center p-4">
+        <div className="text-center max-w-md">
+          <Clock className="w-16 h-16 text-orange-500 mx-auto mb-4" />
+          <h1 className="text-2xl font-bold text-white mb-2">Modification impossible</h1>
+          <p className="text-gray-400 mb-2">
+            Votre séance commence dans {hoursRemaining > 0 ? `${hoursRemaining}h ` : ''}{minutesRemaining} minutes.
+          </p>
+          <p className="text-gray-400 mb-6">
+            Les réservations ne peuvent être modifiées que jusqu&apos;à 2 heures avant le début de la séance.
+          </p>
+          <Link
+            href={`/bookings/${id}`}
+            className="inline-flex items-center gap-2 px-6 py-3 bg-white/10 hover:bg-white/20 rounded-xl text-white font-medium transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            Retour aux détails
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white">
       {/* Header */}

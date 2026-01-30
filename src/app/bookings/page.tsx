@@ -31,8 +31,26 @@ const BookingCard = ({
 }) => {
   const formula = FORMULAS.find(f => f.id === booking.formula);
   const status = statusConfig[booking.status];
-  const isUpcoming = new Date(booking.date) >= new Date();
-  const canModify = booking.status === 'active' && isUpcoming;
+  
+  // Vérifier si la réservation peut être modifiée (règle des 2h avant)
+  const bookingDateTime = new Date(`${booking.date}T${booking.time}`);
+  const now = new Date();
+  const twoHoursInMs = 2 * 60 * 60 * 1000;
+  const timeUntilBooking = bookingDateTime.getTime() - now.getTime();
+  const isWithinTwoHours = timeUntilBooking >= 0 && timeUntilBooking < twoHoursInMs;
+  const isPast = timeUntilBooking < 0;
+  
+  const canModify = (booking.status === 'active' || booking.status === 'modifiee') && !isPast && !isWithinTwoHours;
+  const showTimeWarning = (booking.status === 'active' || booking.status === 'modifiee') && isWithinTwoHours;
+
+  // Formatter le temps restant
+  const formatTimeRemaining = () => {
+    if (timeUntilBooking < 0) return null;
+    const hours = Math.floor(timeUntilBooking / (1000 * 60 * 60));
+    const minutes = Math.floor((timeUntilBooking % (1000 * 60 * 60)) / (1000 * 60));
+    if (hours > 0) return `${hours}h ${minutes}min`;
+    return `${minutes} minutes`;
+  };
 
   return (
     <div className="bg-white/5 rounded-2xl overflow-hidden hover:bg-white/10 transition-colors">
@@ -88,7 +106,22 @@ const BookingCard = ({
             <span className="text-sm text-gray-400">
               {formula?.seats} places
             </span>
+            {booking.roomNumber && (
+              <span className="text-sm text-gray-400">
+                • Salle {booking.roomNumber}
+              </span>
+            )}
           </div>
+
+          {/* Warning pour les 2h */}
+          {showTimeWarning && (
+            <div className="mt-4 p-3 bg-orange-500/10 border border-orange-500/30 rounded-lg">
+              <p className="text-sm text-orange-400 flex items-center gap-2">
+                <Clock className="w-4 h-4" />
+                Séance dans {formatTimeRemaining()} - La modification n&apos;est plus possible
+              </p>
+            </div>
+          )}
 
           {/* Actions */}
           {canModify && (

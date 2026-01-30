@@ -12,10 +12,11 @@ interface CalendarProps {
   selectedDate: string | null;
   selectedTime: string | null;
   onDateSelect: (date: string) => void;
-  onTimeSelect: (time: string) => void;
+  onTimeSelect?: (time: string) => void;
   minDate?: Date;
   maxDate?: Date;
   unavailableSlots?: { date: string; times: string[] }[];
+  showTimeSlots?: boolean;
 }
 
 interface DayInfo {
@@ -64,7 +65,8 @@ export function Calendar({
   onTimeSelect,
   minDate = new Date(),
   maxDate,
-  unavailableSlots = []
+  unavailableSlots = [],
+  showTimeSlots = true
 }: CalendarProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const today = new Date();
@@ -239,7 +241,7 @@ export function Calendar({
       </div>
 
       {/* Créneaux horaires */}
-      {selectedDate && (
+      {showTimeSlots && selectedDate && (
         <div className="mt-8 pb-4">
           <h4 className="text-lg font-semibold mb-4">
             Choisissez un créneau
@@ -254,7 +256,7 @@ export function Calendar({
               {availableTimeSlots.map(({ time, available }) => (
                 <button
                   key={time}
-                  onClick={() => available && onTimeSelect(time)}
+                  onClick={() => available && onTimeSelect?.(time)}
                   disabled={!available}
                   className={`
                     py-3 px-2 rounded-lg text-sm font-medium transition-all

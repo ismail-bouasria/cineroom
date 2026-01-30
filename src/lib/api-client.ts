@@ -1,20 +1,21 @@
+// ============================================
+// API CLIENT - CineRoom (GraphQL)
+// Client API utilisant GraphQL avec données persistantes
+// ============================================
+
 import type {
   ApiResponse,
   Booking,
   CreateBookingInput,
   UpdateBookingInput,
-  FORMULAS,
-  CONSUMABLES,
 } from "@/types";
-import { BookingSchema } from "@/types";
-import { z } from "zod";
 import type { EmailNotificationType } from "@/lib/email";
 
 // ============================================
 // CONFIGURATION
 // ============================================
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "/api";
+const GRAPHQL_ENDPOINT = '/api/graphql';
 
 const ERROR_MESSAGES = {
   network: "Impossible de contacter le serveur. Vérifiez votre connexion.",
@@ -88,63 +89,41 @@ export function hasData<T>(response: ApiResponse<T>): response is ApiResponse<T>
 }
 
 // ============================================
-// FETCH WRAPPER
+// GRAPHQL CLIENT
 // ============================================
 
-async function fetchWithErrorHandling<T>(
-  url: string,
-  options: RequestInit = {},
-  schema?: z.ZodSchema<T>
-): Promise<ApiResponse<T>> {
-  try {
-    const response = await fetch(`${API_BASE_URL}${url}`, {
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...options.headers,
-      },
-    });
-
-    if (!response.ok) {
-      const errorMessage = getErrorMessage(response.status);
-      return createErrorState(errorMessage);
-    }
-
-    const data = await response.json();
-
-    if (schema) {
-      const result = schema.safeParse(data);
-      if (!result.success) {
-        console.error("Validation error:", result.error.issues);
-        return createErrorState(ERROR_MESSAGES.validation);
-      }
-      return createSuccessState(result.data);
-    }
-
-    return createSuccessState(data as T);
-  } catch (error) {
-    console.error("Fetch error:", error);
-    if (error instanceof z.ZodError) {
-      return createErrorState(ERROR_MESSAGES.validation);
-    }
-    return createErrorState(ERROR_MESSAGES.network);
-  }
+interface GraphQLResponse<T> {
+  data?: T;
+  errors?: Array<{ message: string; extensions?: { code?: string } }>;
 }
 
-function getErrorMessage(status: number): string {
-  switch (status) {
-    case 401:
-      return ERROR_MESSAGES.unauthorized;
-    case 403:
-      return ERROR_MESSAGES.forbidden;
-    case 404:
-      return ERROR_MESSAGES.notFound;
-    case 500:
-    case 502:
-    case 503:
-      return ERROR_MESSAGES.server;
-    default:
-      return ERROR_MESSAGES.unknown;
+async function graphqlRequest<T>(
+  query: string,
+  variables?: Record<string, unknown>
+): Promise<{ data?: T; error?: string }> {
+  try {
+    const response = await fetch(GRAPHQL_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query, variables }),
+    });
+
+    const result: GraphQLResponse<T> = await response.json();
+
+    if (result.errors?.length) {
+      const error = result.errors[0];
+      const code = error.extensions?.code;
+      
+      if (code === 'UNAUTHENTICATED') return { error: ERROR_MESSAGES.unauthorized };
+      if (code === 'FORBIDDEN') return { error: ERROR_MESSAGES.forbidden };
+      
+      return { error: error.message || ERROR_MESSAGES.unknown };
+    }
+
+    return { data: result.data };
+  } catch (error) {
+    console.error('GraphQL request error:', error);
+    return { error: ERROR_MESSAGES.network };
   }
 }
 
@@ -161,9 +140,7 @@ async function sendEmailNotification(params: SendEmailNotificationParams): Promi
   try {
     const response = await fetch('/api/email', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),
     });
 
@@ -173,63 +150,318 @@ async function sendEmailNotification(params: SendEmailNotificationParams): Promi
       console.log(`Email de notification "${params.type}" envoyé avec succès`);
     }
   } catch (error) {
-    // Ne pas bloquer l'opération si l'email échoue
     console.warn('Erreur lors de l\'envoi de l\'email de notification:', error);
   }
 }
 
 // ============================================
-// DONNÉES MOCK RÉSERVATIONS
+// GRAPHQL QUERIES
 // ============================================
 
-const MOCK_BOOKINGS: Booking[] = [
-  {
-    id: "1",
-    userId: "user_1",
-    movieId: 1,
-    movieTitle: "Dune: Deuxième Partie",
-    moviePoster: "/8b8R8l88Qje9dn9OE8PY05Nxl1X.jpg",
-    formula: "cine-team",
-    date: "2026-02-05",
-    time: "19:00",
-    consumables: [
-      { consumableId: "menu-team", quantity: 1 },
-      { consumableId: "pop-caramel", quantity: 2 }
-    ],
-    totalPrice: 106,
-    status: "active",
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: "2",
-    userId: "user_1",
-    movieId: 2,
-    movieTitle: "Oppenheimer",
-    moviePoster: "/8Gxv8gSFCU0XGDykEGv7zR1n2ua.jpg",
-    formula: "cine-duo",
-    date: "2026-02-10",
-    time: "20:00",
-    consumables: [
-      { consumableId: "menu-duo", quantity: 1 }
-    ],
-    totalPrice: 53,
-    status: "active",
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: "3",
-    userId: "user_1",
-    movieId: 5,
-    movieTitle: "Avatar: La Voie de l'Eau",
-    moviePoster: "/t6HIqrRAclMCA60NsSmeqe9RmNV.jpg",
-    formula: "cine-groupe",
-    date: "2026-01-15",
-    time: "18:00",
-    totalPrice: 100,
-    status: "passee",
-    createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-  }
-];
+const QUERIES = {
+  MY_BOOKINGS: `
+    query MyBookings($filters: BookingFilters, $pagination: PaginationInput) {
+      myBookings(filters: $filters, pagination: $pagination) {
+        items {
+          id
+          movieId
+          movieTitle
+          moviePoster
+          formula
+          date
+          time
+          roomNumber
+          totalPrice
+          status
+          specialRequests
+          consumables {
+            id
+            quantity
+            consumable { id name price category }
+          }
+          createdAt
+          updatedAt
+        }
+        total
+        page
+        pageSize
+        totalPages
+      }
+    }
+  `,
+
+  BOOKING: `
+    query Booking($id: ID!) {
+      booking(id: $id) {
+        id
+        movieId
+        movieTitle
+        moviePoster
+        formula
+        date
+        time
+        roomNumber
+        totalPrice
+        status
+        specialRequests
+        consumables {
+          id
+          quantity
+          consumable { id name price category }
+        }
+        user { id email firstName lastName }
+        createdAt
+        updatedAt
+      }
+    }
+  `,
+
+  ALL_BOOKINGS: `
+    query AllBookings($filters: BookingFilters, $pagination: PaginationInput) {
+      allBookings(filters: $filters, pagination: $pagination) {
+        items {
+          id
+          movieId
+          movieTitle
+          moviePoster
+          formula
+          date
+          time
+          totalPrice
+          status
+          user { id email firstName lastName }
+          consumables {
+            id
+            quantity
+            consumable { id name price }
+          }
+          createdAt
+        }
+        total
+        page
+        pageSize
+        totalPages
+      }
+    }
+  `,
+
+  DASHBOARD_STATS: `
+    query DashboardStats {
+      dashboardStats {
+        totalBookings
+        activeBookings
+        totalRevenue
+        totalUsers
+        bookingsByFormula { formula count revenue }
+        bookingsByStatus { status count }
+        recentBookings {
+          id
+          movieTitle
+          moviePoster
+          formula
+          date
+          time
+          totalPrice
+          status
+          user { email firstName lastName }
+        }
+        monthlyRevenue { month revenue bookings }
+      }
+    }
+  `,
+
+  USERS: `
+    query Users($pagination: PaginationInput) {
+      users(pagination: $pagination) {
+        items { id clerkId email firstName lastName role createdAt }
+        total
+        page
+        pageSize
+        totalPages
+      }
+    }
+  `,
+
+  CHECK_AVAILABILITY: `
+    query CheckAvailability($date: String!, $time: String!, $formula: String) {
+      checkAvailability(date: $date, time: $time, formula: $formula)
+    }
+  `,
+
+  CAN_MODIFY_BOOKING: `
+    query CanModifyBooking($bookingId: ID!) {
+      canModifyBooking(bookingId: $bookingId)
+    }
+  `,
+
+  GET_SLOT_AVAILABILITY: `
+    query GetSlotAvailability($date: String!, $time: String!) {
+      getSlotAvailability(date: $date, time: $time) {
+        date
+        time
+        formulas {
+          formula
+          totalRooms
+          bookedRooms
+          availableRooms
+          isAvailable
+        }
+        totalAvailableRooms
+        isCompletelyBooked
+      }
+    }
+  `,
+
+  GET_AVAILABLE_TIME_SLOTS: `
+    query GetAvailableTimeSlots($date: String!, $formula: String!) {
+      getAvailableTimeSlots(date: $date, formula: $formula) {
+        time
+        isAvailable
+        availableRooms
+        totalRooms
+        bookedRooms
+      }
+    }
+  `,
+};
+
+const MUTATIONS = {
+  CREATE_BOOKING: `
+    mutation CreateBooking($input: CreateBookingInput!) {
+      createBooking(input: $input) {
+        id
+        movieId
+        movieTitle
+        moviePoster
+        formula
+        date
+        time
+        roomNumber
+        totalPrice
+        status
+        consumables {
+          id
+          quantity
+          consumable { id name price }
+        }
+        createdAt
+      }
+    }
+  `,
+
+  UPDATE_BOOKING: `
+    mutation UpdateBooking($id: ID!, $input: UpdateBookingInput!) {
+      updateBooking(id: $id, input: $input) {
+        id
+        movieId
+        movieTitle
+        moviePoster
+        formula
+        date
+        time
+        roomNumber
+        totalPrice
+        status
+        consumables {
+          id
+          quantity
+          consumable { id name price }
+        }
+        updatedAt
+      }
+    }
+  `,
+
+  CANCEL_BOOKING: `
+    mutation CancelBooking($id: ID!) {
+      cancelBooking(id: $id) {
+        id
+        status
+        movieTitle
+        date
+        time
+        roomNumber
+        totalPrice
+      }
+    }
+  `,
+
+  UPDATE_BOOKING_STATUS: `
+    mutation UpdateBookingStatus($id: ID!, $status: ReservationStatus!) {
+      updateBookingStatus(id: $id, status: $status) {
+        id
+        status
+      }
+    }
+  `,
+
+  DELETE_BOOKING: `
+    mutation DeleteBooking($id: ID!) {
+      deleteBooking(id: $id)
+    }
+  `,
+
+  UPDATE_USER_ROLE: `
+    mutation UpdateUserRole($userId: ID!, $role: UserRole!) {
+      updateUserRole(userId: $userId, role: $role) {
+        id
+        role
+      }
+    }
+  `,
+};
+
+// ============================================
+// HELPER: Transformer les données GraphQL
+// ============================================
+
+interface GraphQLBookingConsumable {
+  id: string;
+  quantity: number;
+  consumable: { id: string; name: string; price: number; category?: string };
+}
+
+interface GraphQLBooking {
+  id: string;
+  movieId: number;
+  movieTitle: string;
+  moviePoster?: string | null;
+  formula: string;
+  date: string;
+  time: string;
+  roomNumber: number;
+  totalPrice: number;
+  status: string;
+  specialRequests?: string;
+  consumables?: GraphQLBookingConsumable[];
+  user?: { id: string; email: string; firstName?: string; lastName?: string };
+  createdAt: string;
+  updatedAt?: string;
+}
+
+function transformBooking(gqlBooking: GraphQLBooking): Booking {
+  return {
+    id: gqlBooking.id,
+    userId: gqlBooking.user?.id || '',
+    userEmail: gqlBooking.user?.email,
+    movieId: gqlBooking.movieId,
+    movieTitle: gqlBooking.movieTitle,
+    moviePoster: gqlBooking.moviePoster,
+    formula: gqlBooking.formula as Booking['formula'],
+    date: gqlBooking.date,
+    time: gqlBooking.time,
+    roomNumber: gqlBooking.roomNumber,
+    totalPrice: gqlBooking.totalPrice,
+    status: gqlBooking.status as Booking['status'],
+    specialRequests: gqlBooking.specialRequests,
+    consumables: gqlBooking.consumables?.map(c => ({
+      consumableId: c.consumable.id,
+      quantity: c.quantity,
+    })),
+    createdAt: gqlBooking.createdAt,
+    updatedAt: gqlBooking.updatedAt,
+  };
+}
 
 // ============================================
 // API BOOKINGS
@@ -237,166 +469,239 @@ const MOCK_BOOKINGS: Booking[] = [
 
 export const bookingsApi = {
   /**
-   * Récupérer toutes les réservations de l'utilisateur
+   * Récupérer toutes les réservations de l'utilisateur connecté
    */
   getAll: async (): Promise<ApiResponse<Booking[]>> => {
-    // Simulation API avec données mock
-    await simulateDelay();
-    return createSuccessState(MOCK_BOOKINGS);
+    const { data, error } = await graphqlRequest<{
+      myBookings: { items: GraphQLBooking[] };
+    }>(QUERIES.MY_BOOKINGS, { pagination: { page: 1, pageSize: 100 } });
+
+    if (error) return createErrorState(error);
+    if (!data) return createErrorState(ERROR_MESSAGES.unknown);
+
+    const bookings = data.myBookings.items.map(transformBooking);
+    return createSuccessState(bookings);
   },
 
   /**
    * Récupérer une réservation par ID
    */
   getById: async (id: string): Promise<ApiResponse<Booking>> => {
-    await simulateDelay();
-    const booking = MOCK_BOOKINGS.find(b => b.id === id);
-    if (!booking) {
-      return createErrorState(ERROR_MESSAGES.notFound);
-    }
-    return createSuccessState(booking);
+    const { data, error } = await graphqlRequest<{
+      booking: GraphQLBooking;
+    }>(QUERIES.BOOKING, { id });
+
+    if (error) return createErrorState(error);
+    if (!data?.booking) return createErrorState(ERROR_MESSAGES.notFound);
+
+    return createSuccessState(transformBooking(data.booking));
   },
 
   /**
    * Créer une nouvelle réservation
    */
   create: async (input: CreateBookingInput): Promise<ApiResponse<Booking>> => {
-    await simulateDelay();
-    
-    // Calculer le prix total
-    const formula = (await import("@/types")).FORMULAS.find(f => f.id === input.formula);
-    let totalPrice = formula?.basePrice || 0;
-    
-    if (input.consumables) {
-      const consumables = (await import("@/types")).CONSUMABLES;
-      for (const item of input.consumables) {
-        const consumable = consumables.find(c => c.id === item.consumableId);
-        if (consumable) {
-          totalPrice += consumable.price * item.quantity;
-        }
-      }
-    }
-
-    const newBooking: Booking = {
-      id: String(Date.now()),
-      userId: "current_user",
-      movieId: input.movieId,
-      movieTitle: input.movieTitle,
-      moviePoster: input.moviePoster,
-      formula: input.formula,
-      date: input.date,
-      time: input.time,
-      consumables: input.consumables,
-      totalPrice,
-      status: "active",
-      createdAt: new Date().toISOString(),
-    };
-
-    MOCK_BOOKINGS.push(newBooking);
-
-    // Envoyer l'email de confirmation (l'email est récupéré depuis Clerk côté serveur)
-    sendEmailNotification({
-      type: 'booking_created',
-      booking: newBooking,
+    const { data, error } = await graphqlRequest<{
+      createBooking: GraphQLBooking;
+    }>(MUTATIONS.CREATE_BOOKING, {
+      input: {
+        movieId: input.movieId,
+        movieTitle: input.movieTitle,
+        moviePoster: input.moviePoster,
+        formula: input.formula,
+        date: input.date,
+        time: input.time,
+        roomNumber: input.roomNumber,
+        consumables: input.consumables?.map(c => ({
+          consumableId: c.consumableId,
+          quantity: c.quantity,
+        })),
+        specialRequests: input.specialRequests,
+      },
     });
 
-    return createSuccessState(newBooking);
+    if (error) return createErrorState(error);
+    if (!data?.createBooking) return createErrorState(ERROR_MESSAGES.unknown);
+
+    const booking = transformBooking(data.createBooking);
+
+    // Envoyer l'email de confirmation
+    sendEmailNotification({ type: 'booking_created', booking });
+
+    return createSuccessState(booking);
+  },
+
+  /**
+   * Vérifier si l'utilisateur peut modifier/annuler une réservation (règle des 2h)
+   */
+  canModify: async (bookingId: string): Promise<ApiResponse<boolean>> => {
+    const { data, error } = await graphqlRequest<{
+      canModifyBooking: boolean;
+    }>(QUERIES.CAN_MODIFY_BOOKING, { bookingId });
+
+    if (error) return createErrorState(error);
+    
+    return createSuccessState(data?.canModifyBooking ?? false);
   },
 
   /**
    * Modifier une réservation
    */
   update: async (id: string, input: UpdateBookingInput): Promise<ApiResponse<Booking>> => {
-    await simulateDelay();
-    const index = MOCK_BOOKINGS.findIndex(b => b.id === id);
-    if (index === -1) {
-      return createErrorState(ERROR_MESSAGES.notFound);
-    }
-
-    // Recalculer le prix total si les consommables ont changé
-    let totalPrice = MOCK_BOOKINGS[index].totalPrice;
-    if (input.consumables || input.formula) {
-      const formula = (await import("@/types")).FORMULAS.find(
-        f => f.id === (input.formula || MOCK_BOOKINGS[index].formula)
-      );
-      totalPrice = formula?.basePrice || 0;
-      
-      const consumablesToUse = input.consumables || MOCK_BOOKINGS[index].consumables || [];
-      const consumables = (await import("@/types")).CONSUMABLES;
-      for (const item of consumablesToUse) {
-        const consumable = consumables.find(c => c.id === item.consumableId);
-        if (consumable) {
-          totalPrice += consumable.price * item.quantity;
-        }
-      }
-    }
-
-    const updatedBooking: Booking = {
-      ...MOCK_BOOKINGS[index],
-      ...input,
-      totalPrice,
-      status: input.status || "modifiee",
-      updatedAt: new Date().toISOString(),
-    };
-
-    MOCK_BOOKINGS[index] = updatedBooking;
-
-    // Envoyer l'email de notification de modification (email récupéré depuis Clerk)
-    sendEmailNotification({
-      type: 'booking_modified',
-      booking: updatedBooking,
+    const { data, error } = await graphqlRequest<{
+      updateBooking: GraphQLBooking;
+    }>(MUTATIONS.UPDATE_BOOKING, {
+      id,
+      input: {
+        date: input.date,
+        time: input.time,
+        roomNumber: input.roomNumber,
+        formula: input.formula,
+        consumables: input.consumables?.map(c => ({
+          consumableId: c.consumableId,
+          quantity: c.quantity,
+        })),
+        specialRequests: input.specialRequests,
+        status: input.status,
+      },
     });
 
-    return createSuccessState(updatedBooking);
+    if (error) return createErrorState(error);
+    if (!data?.updateBooking) return createErrorState(ERROR_MESSAGES.unknown);
+
+    const booking = transformBooking(data.updateBooking);
+
+    // Envoyer l'email de modification
+    sendEmailNotification({ type: 'booking_modified', booking });
+
+    return createSuccessState(booking);
   },
 
   /**
    * Annuler une réservation
    */
   cancel: async (id: string): Promise<ApiResponse<Booking>> => {
-    await simulateDelay();
-    const index = MOCK_BOOKINGS.findIndex(b => b.id === id);
-    if (index === -1) {
-      return createErrorState(ERROR_MESSAGES.notFound);
-    }
+    const { data, error } = await graphqlRequest<{
+      cancelBooking: GraphQLBooking;
+    }>(MUTATIONS.CANCEL_BOOKING, { id });
 
-    MOCK_BOOKINGS[index] = {
-      ...MOCK_BOOKINGS[index],
-      status: "annulee",
-      updatedAt: new Date().toISOString(),
-    };
+    if (error) return createErrorState(error);
+    if (!data?.cancelBooking) return createErrorState(ERROR_MESSAGES.unknown);
 
-    const cancelledBooking = MOCK_BOOKINGS[index];
+    const booking = transformBooking(data.cancelBooking);
 
-    // Envoyer l'email de notification d'annulation (email récupéré depuis Clerk)
-    sendEmailNotification({
-      type: 'booking_cancelled',
-      booking: cancelledBooking,
-    });
+    // Envoyer l'email d'annulation
+    sendEmailNotification({ type: 'booking_cancelled', booking });
 
-    return createSuccessState(cancelledBooking);
+    return createSuccessState(booking);
   },
 
   /**
-   * Supprimer une réservation
+   * Supprimer une réservation (admin)
    */
   delete: async (id: string): Promise<ApiResponse<{ success: boolean }>> => {
-    await simulateDelay();
-    const index = MOCK_BOOKINGS.findIndex(b => b.id === id);
-    if (index === -1) {
-      return createErrorState(ERROR_MESSAGES.notFound);
+    // D'abord récupérer la réservation pour l'email
+    const bookingResult = await bookingsApi.getById(id);
+    
+    const { data, error } = await graphqlRequest<{
+      deleteBooking: boolean;
+    }>(MUTATIONS.DELETE_BOOKING, { id });
+
+    if (error) return createErrorState(error);
+    if (!data?.deleteBooking) return createErrorState(ERROR_MESSAGES.unknown);
+
+    // Envoyer l'email de suppression si on avait les données
+    if (hasData(bookingResult)) {
+      sendEmailNotification({ type: 'booking_deleted', booking: bookingResult.data });
     }
 
-    const deletedBooking = { ...MOCK_BOOKINGS[index] };
-    MOCK_BOOKINGS.splice(index, 1);
+    return createSuccessState({ success: true });
+  },
+};
 
-    // Envoyer l'email de notification de suppression (email récupéré depuis Clerk)
-    sendEmailNotification({
-      type: 'booking_deleted',
-      booking: deletedBooking,
+// ============================================
+// API ADMIN
+// ============================================
+
+export const adminApi = {
+  /**
+   * Récupérer toutes les réservations (admin)
+   */
+  getAllBookings: async (filters?: {
+    status?: string;
+    dateFrom?: string;
+    dateTo?: string;
+  }): Promise<ApiResponse<Booking[]>> => {
+    const { data, error } = await graphqlRequest<{
+      allBookings: { items: GraphQLBooking[]; total: number };
+    }>(QUERIES.ALL_BOOKINGS, {
+      filters,
+      pagination: { page: 1, pageSize: 100 },
     });
 
-    return createSuccessState({ success: true });
+    if (error) return createErrorState(error);
+    if (!data) return createErrorState(ERROR_MESSAGES.unknown);
+
+    const bookings = data.allBookings.items.map(transformBooking);
+    return createSuccessState(bookings);
+  },
+
+  /**
+   * Mettre à jour le statut d'une réservation
+   */
+  updateBookingStatus: async (id: string, status: string): Promise<ApiResponse<{ id: string; status: string }>> => {
+    const { data, error } = await graphqlRequest<{
+      updateBookingStatus: { id: string; status: string };
+    }>(MUTATIONS.UPDATE_BOOKING_STATUS, { id, status });
+
+    if (error) return createErrorState(error);
+    if (!data?.updateBookingStatus) return createErrorState(ERROR_MESSAGES.unknown);
+
+    return createSuccessState(data.updateBookingStatus);
+  },
+
+  /**
+   * Récupérer tous les utilisateurs
+   */
+  getUsers: async (): Promise<ApiResponse<Array<{
+    id: string;
+    clerkId: string;
+    email: string;
+    firstName?: string;
+    lastName?: string;
+    role: string;
+    createdAt: string;
+  }>>> => {
+    const { data, error } = await graphqlRequest<{
+      users: { items: Array<{
+        id: string;
+        clerkId: string;
+        email: string;
+        firstName?: string;
+        lastName?: string;
+        role: string;
+        createdAt: string;
+      }> };
+    }>(QUERIES.USERS, { pagination: { page: 1, pageSize: 100 } });
+
+    if (error) return createErrorState(error);
+    if (!data) return createErrorState(ERROR_MESSAGES.unknown);
+
+    return createSuccessState(data.users.items);
+  },
+
+  /**
+   * Mettre à jour le rôle d'un utilisateur
+   */
+  updateUserRole: async (userId: string, role: 'user' | 'admin'): Promise<ApiResponse<{ id: string; role: string }>> => {
+    const { data, error } = await graphqlRequest<{
+      updateUserRole: { id: string; role: string };
+    }>(MUTATIONS.UPDATE_USER_ROLE, { userId, role });
+
+    if (error) return createErrorState(error);
+    if (!data?.updateUserRole) return createErrorState(ERROR_MESSAGES.unknown);
+
+    return createSuccessState(data.updateUserRole);
   },
 };
 
@@ -409,25 +714,44 @@ export interface DashboardStats {
   activeBookings: number;
   cancelledBookings: number;
   totalRevenue: number;
-  popularFormulas: { formula: string; count: number }[];
+  totalUsers: number;
+  popularFormulas: { formula: string; count: number; revenue: number }[];
+  bookingsByStatus: { status: string; count: number }[];
   recentBookings: Booking[];
+  monthlyRevenue: { month: string; revenue: number; bookings: number }[];
 }
 
 export const statsApi = {
   getDashboard: async (): Promise<ApiResponse<DashboardStats>> => {
-    await simulateDelay();
-    
+    const { data, error } = await graphqlRequest<{
+      dashboardStats: {
+        totalBookings: number;
+        activeBookings: number;
+        totalRevenue: number;
+        totalUsers: number;
+        bookingsByFormula: { formula: string; count: number; revenue: number }[];
+        bookingsByStatus: { status: string; count: number }[];
+        recentBookings: GraphQLBooking[];
+        monthlyRevenue: { month: string; revenue: number; bookings: number }[];
+      };
+    }>(QUERIES.DASHBOARD_STATS);
+
+    if (error) return createErrorState(error);
+    if (!data?.dashboardStats) return createErrorState(ERROR_MESSAGES.unknown);
+
+    const s = data.dashboardStats;
+    const cancelledCount = s.bookingsByStatus.find(b => b.status === 'annulee')?.count || 0;
+
     const stats: DashboardStats = {
-      totalBookings: MOCK_BOOKINGS.length,
-      activeBookings: MOCK_BOOKINGS.filter(b => b.status === "active").length,
-      cancelledBookings: MOCK_BOOKINGS.filter(b => b.status === "annulee").length,
-      totalRevenue: MOCK_BOOKINGS.reduce((sum, b) => sum + b.totalPrice, 0),
-      popularFormulas: [
-        { formula: "Ciné'Team", count: 45 },
-        { formula: "Ciné'Duo", count: 32 },
-        { formula: "Ciné'Groupe", count: 18 },
-      ],
-      recentBookings: MOCK_BOOKINGS.slice(0, 5),
+      totalBookings: s.totalBookings,
+      activeBookings: s.activeBookings,
+      cancelledBookings: cancelledCount,
+      totalRevenue: s.totalRevenue,
+      totalUsers: s.totalUsers,
+      popularFormulas: s.bookingsByFormula,
+      bookingsByStatus: s.bookingsByStatus,
+      recentBookings: s.recentBookings.map(transformBooking),
+      monthlyRevenue: s.monthlyRevenue,
     };
 
     return createSuccessState(stats);
@@ -435,9 +759,70 @@ export const statsApi = {
 };
 
 // ============================================
-// HELPER
+// API AVAILABILITY
 // ============================================
 
-function simulateDelay(ms = 500): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
+export interface FormulaAvailability {
+  formula: string;
+  totalRooms: number;
+  bookedRooms: number;
+  availableRooms: number;
+  isAvailable: boolean;
 }
+
+export interface SlotAvailability {
+  date: string;
+  time: string;
+  formulas: FormulaAvailability[];
+  totalAvailableRooms: number;
+  isCompletelyBooked: boolean;
+}
+
+export interface TimeSlotInfo {
+  time: string;
+  isAvailable: boolean;
+  availableRooms: number;
+  totalRooms: number;
+}
+
+export const availabilityApi = {
+  /**
+   * Vérifier la disponibilité d'un créneau (optionnellement pour une formule)
+   */
+  check: async (date: string, time: string, formula?: string): Promise<boolean> => {
+    const { data, error } = await graphqlRequest<{
+      checkAvailability: boolean;
+    }>(QUERIES.CHECK_AVAILABILITY, { date, time, formula });
+
+    if (error) return false;
+    return data?.checkAvailability ?? false;
+  },
+
+  /**
+   * Obtenir les détails de disponibilité d'un créneau (toutes formules)
+   */
+  getSlotDetails: async (date: string, time: string): Promise<ApiResponse<SlotAvailability>> => {
+    const { data, error } = await graphqlRequest<{
+      getSlotAvailability: SlotAvailability;
+    }>(QUERIES.GET_SLOT_AVAILABILITY, { date, time });
+
+    if (error) return createErrorState(error);
+    if (!data?.getSlotAvailability) return createErrorState(ERROR_MESSAGES.unknown);
+
+    return createSuccessState(data.getSlotAvailability);
+  },
+
+  /**
+   * Obtenir tous les créneaux disponibles pour une date et formule
+   */
+  getTimeSlots: async (date: string, formula: string): Promise<ApiResponse<TimeSlotInfo[]>> => {
+    const { data, error } = await graphqlRequest<{
+      getAvailableTimeSlots: TimeSlotInfo[];
+    }>(QUERIES.GET_AVAILABLE_TIME_SLOTS, { date, formula });
+
+    if (error) return createErrorState(error);
+    if (!data?.getAvailableTimeSlots) return createErrorState(ERROR_MESSAGES.unknown);
+
+    return createSuccessState(data.getAvailableTimeSlots);
+  },
+};
