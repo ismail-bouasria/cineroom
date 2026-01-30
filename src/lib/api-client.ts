@@ -8,6 +8,7 @@ import type {
 } from "@/types";
 import { BookingSchema } from "@/types";
 import { z } from "zod";
+import type { EmailNotificationType } from "@/lib/email";
 
 // ============================================
 // CONFIGURATION
@@ -148,6 +149,36 @@ function getErrorMessage(status: number): string {
 }
 
 // ============================================
+// ENVOI DE NOTIFICATIONS EMAIL
+// ============================================
+
+interface SendEmailNotificationParams {
+  type: EmailNotificationType;
+  booking: Booking;
+}
+
+async function sendEmailNotification(params: SendEmailNotificationParams): Promise<void> {
+  try {
+    const response = await fetch('/api/email', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(params),
+    });
+
+    if (!response.ok) {
+      console.warn('Échec de l\'envoi de l\'email de notification:', await response.text());
+    } else {
+      console.log(`Email de notification "${params.type}" envoyé avec succès`);
+    }
+  } catch (error) {
+    // Ne pas bloquer l'opération si l'email échoue
+    console.warn('Erreur lors de l\'envoi de l\'email de notification:', error);
+  }
+}
+
+// ============================================
 // DONNÉES MOCK RÉSERVATIONS
 // ============================================
 
@@ -262,6 +293,13 @@ export const bookingsApi = {
     };
 
     MOCK_BOOKINGS.push(newBooking);
+
+    // Envoyer l'email de confirmation (l'email est récupéré depuis Clerk côté serveur)
+    sendEmailNotification({
+      type: 'booking_created',
+      booking: newBooking,
+    });
+
     return createSuccessState(newBooking);
   },
 
@@ -275,14 +313,40 @@ export const bookingsApi = {
       return createErrorState(ERROR_MESSAGES.notFound);
     }
 
+    // Recalculer le prix total si les consommables ont changé
+    let totalPrice = MOCK_BOOKINGS[index].totalPrice;
+    if (input.consumables || input.formula) {
+      const formula = (await import("@/types")).FORMULAS.find(
+        f => f.id === (input.formula || MOCK_BOOKINGS[index].formula)
+      );
+      totalPrice = formula?.basePrice || 0;
+      
+      const consumablesToUse = input.consumables || MOCK_BOOKINGS[index].consumables || [];
+      const consumables = (await import("@/types")).CONSUMABLES;
+      for (const item of consumablesToUse) {
+        const consumable = consumables.find(c => c.id === item.consumableId);
+        if (consumable) {
+          totalPrice += consumable.price * item.quantity;
+        }
+      }
+    }
+
     const updatedBooking: Booking = {
       ...MOCK_BOOKINGS[index],
       ...input,
+      totalPrice,
       status: input.status || "modifiee",
       updatedAt: new Date().toISOString(),
     };
 
     MOCK_BOOKINGS[index] = updatedBooking;
+
+    // Envoyer l'email de notification de modification (email récupéré depuis Clerk)
+    sendEmailNotification({
+      type: 'booking_modified',
+      booking: updatedBooking,
+    });
+
     return createSuccessState(updatedBooking);
   },
 
@@ -302,7 +366,15 @@ export const bookingsApi = {
       updatedAt: new Date().toISOString(),
     };
 
-    return createSuccessState(MOCK_BOOKINGS[index]);
+    const cancelledBooking = MOCK_BOOKINGS[index];
+
+    // Envoyer l'email de notification d'annulation (email récupéré depuis Clerk)
+    sendEmailNotification({
+      type: 'booking_cancelled',
+      booking: cancelledBooking,
+    });
+
+    return createSuccessState(cancelledBooking);
   },
 
   /**
@@ -315,7 +387,15 @@ export const bookingsApi = {
       return createErrorState(ERROR_MESSAGES.notFound);
     }
 
+    const deletedBooking = { ...MOCK_BOOKINGS[index] };
     MOCK_BOOKINGS.splice(index, 1);
+
+    // Envoyer l'email de notification de suppression (email récupéré depuis Clerk)
+    sendEmailNotification({
+      type: 'booking_deleted',
+      booking: deletedBooking,
+    });
+
     return createSuccessState({ success: true });
   },
 };

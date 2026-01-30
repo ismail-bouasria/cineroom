@@ -105,6 +105,7 @@ export default function EditBookingPage({ params }: { params: Promise<{ id: stri
         status: 'modifiee'
       };
       
+      // L'email est récupéré automatiquement depuis Clerk côté serveur
       const result = await bookingsApi.update(id, updatedBooking);
       
       if (hasData(result)) {

@@ -13,6 +13,7 @@ import { TMDBMovie, FORMULAS, FormulaConfig, CONSUMABLES } from '@/types';
 import { getImageUrl, MOCK_MOVIES } from '@/lib/tmdb';
 import { Calendar } from '@/components/booking/Calendar';
 import { ConsumableSelector, ConsumableSelection, ConsumableSummary } from '@/components/booking/ConsumableSelector';
+import { bookingsApi } from '@/lib/api-client';
 
 // ============================================
 // TYPES
@@ -446,13 +447,35 @@ function BookingContent() {
       return;
     }
 
+    if (!booking.movie || !booking.formula || !booking.date || !booking.time) {
+      return;
+    }
+
     setIsLoading(true);
     
-    // Simuler l'appel API
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // Rediriger vers la page de succès
-    router.push('/bookings?success=true');
+    try {
+      // Créer la réservation (l'email est récupéré automatiquement depuis Clerk)
+      const result = await bookingsApi.create({
+        movieId: booking.movie.id,
+        movieTitle: booking.movie.title,
+        moviePoster: booking.movie.poster_path,
+        formula: booking.formula.id,
+        date: booking.date,
+        time: booking.time,
+        consumables: booking.consumables,
+      });
+
+      if (result.state === 'success') {
+        // Rediriger vers la page de succès
+        router.push('/bookings?success=true');
+      } else {
+        console.error('Erreur lors de la création de la réservation:', result.error);
+        setIsLoading(false);
+      }
+    } catch (error) {
+      console.error('Erreur:', error);
+      setIsLoading(false);
+    }
   };
 
   return (
