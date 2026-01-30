@@ -699,21 +699,17 @@ export const resolvers = {
         }
       }
 
-      // Supprimer les consommables associés d'abord
-      await ctx.prisma.bookingConsumable.deleteMany({
-        where: { bookingId: id },
-      });
-
-      // Supprimer la réservation
-      await ctx.prisma.booking.delete({
+      // Mettre à jour le statut de la réservation en "annulee"
+      const booking = await ctx.prisma.booking.update({
         where: { id },
+        data: { status: 'annulee' },
+        include: {
+          consumables: { include: { consumable: true } },
+          user: true,
+        },
       });
 
-      // Retourner les infos de la réservation supprimée pour l'email
-      return {
-        ...existing,
-        status: 'annulee' as const,
-      };
+      return booking;
     },
 
     // ---- Admin Mutations ----
@@ -741,9 +737,34 @@ export const resolvers = {
       { id }: { id: string },
       ctx: GraphQLContext
     ) => {
-      requireAdmin(ctx);
+      requireAuth(ctx);
 
+      const existing = await ctx.prisma.booking.findUnique({
+        where: { id },
+      });
+
+      if (!existing) {
+        throw new Error('Réservation introuvable.');
+      }
+
+      // Vérifier les permissions : soit admin, soit propriétaire de la réservation
+      if (existing.userId !== ctx.userId && !ctx.isAdmin) {
+        throw new Error('Vous n\'avez pas accès à cette réservation.');
+      }
+
+      // Les utilisateurs normaux ne peuvent supprimer que les réservations annulées
+      if (!ctx.isAdmin && existing.status !== 'annulee') {
+        throw new Error('Seules les réservations annulées peuvent être supprimées.');
+      }
+
+      // Supprimer les consommables associés d'abord
+      await ctx.prisma.bookingConsumable.deleteMany({
+        where: { bookingId: id },
+      });
+
+      // Supprimer la réservation
       await ctx.prisma.booking.delete({ where: { id } });
+      
       return true;
     },
 

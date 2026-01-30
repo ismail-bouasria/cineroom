@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
-import { Calendar, Clock, Film, ArrowLeft, Ticket, Check, X, Edit, Filter } from 'lucide-react';
+import { Calendar, Clock, Film, ArrowLeft, Ticket, Check, X, Edit, Filter, Trash2 } from 'lucide-react';
 import { Booking, FORMULAS, ReservationStatus } from '@/types';
 import { useApiState } from '@/lib/hooks';
 import { bookingsApi, isLoading, hasError, hasData } from '@/lib/api-client';
@@ -24,10 +24,12 @@ const statusConfig: Record<ReservationStatus, { label: string; color: string; bg
 
 const BookingCard = ({ 
   booking, 
-  onCancel 
+  onCancel,
+  onDelete
 }: { 
   booking: Booking; 
   onCancel: (id: string) => void;
+  onDelete: (id: string) => void;
 }) => {
   const formula = FORMULAS.find(f => f.id === booking.formula);
   const status = statusConfig[booking.status];
@@ -41,6 +43,7 @@ const BookingCard = ({
   const isPast = timeUntilBooking < 0;
   
   const canModify = (booking.status === 'active' || booking.status === 'modifiee') && !isPast && !isWithinTwoHours;
+  const canDelete = booking.status === 'annulee';
   const showTimeWarning = (booking.status === 'active' || booking.status === 'modifiee') && isWithinTwoHours;
 
   // Formatter le temps restant
@@ -53,7 +56,18 @@ const BookingCard = ({
   };
 
   return (
-    <div className="bg-white/5 rounded-2xl overflow-hidden hover:bg-white/10 transition-colors">
+    <div className="bg-white/5 rounded-2xl overflow-hidden hover:bg-white/10 transition-colors relative">
+      {/* Bouton Supprimer en haut à droite (seulement pour les réservations annulées) */}
+      {canDelete && (
+        <button
+          onClick={() => onDelete(booking.id)}
+          className="absolute top-3 right-3 z-10 p-2 bg-red-500/20 hover:bg-red-500/40 text-red-400 hover:text-red-300 rounded-lg transition-colors"
+          title="Supprimer définitivement"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
+      )}
+      
       <div className="flex flex-col sm:flex-row">
         {/* Poster */}
         <div className="w-full sm:w-32 h-40 sm:h-auto relative flex-shrink-0">
@@ -149,6 +163,96 @@ const BookingCard = ({
 };
 
 // ============================================
+// MODAL DE CONFIRMATION
+// ============================================
+
+interface ConfirmModalProps {
+  isOpen: boolean;
+  title: string;
+  message: string;
+  confirmText: string;
+  cancelText?: string;
+  variant?: 'danger' | 'warning';
+  onConfirm: () => void;
+  onCancel: () => void;
+  isLoading?: boolean;
+}
+
+function ConfirmModal({ 
+  isOpen, 
+  title, 
+  message, 
+  confirmText, 
+  cancelText = 'Annuler',
+  variant = 'danger',
+  onConfirm, 
+  onCancel,
+  isLoading = false
+}: ConfirmModalProps) {
+  if (!isOpen) return null;
+
+  const variantStyles = {
+    danger: {
+      icon: 'bg-red-500/20 text-red-400',
+      button: 'bg-red-500 hover:bg-red-600 text-white',
+    },
+    warning: {
+      icon: 'bg-orange-500/20 text-orange-400',
+      button: 'bg-orange-500 hover:bg-orange-600 text-white',
+    },
+  };
+
+  const styles = variantStyles[variant];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Backdrop */}
+      <div 
+        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        onClick={onCancel}
+      />
+      
+      {/* Modal */}
+      <div className="relative bg-[#1a1a1a] rounded-2xl max-w-md w-full p-6 border border-white/10 shadow-2xl">
+        {/* Icon */}
+        <div className={`w-12 h-12 rounded-full ${styles.icon} flex items-center justify-center mx-auto mb-4`}>
+          <X className="w-6 h-6" />
+        </div>
+        
+        {/* Content */}
+        <h3 className="text-xl font-bold text-center mb-2">{title}</h3>
+        <p className="text-gray-400 text-center mb-6">{message}</p>
+        
+        {/* Actions */}
+        <div className="flex gap-3">
+          <button
+            onClick={onCancel}
+            disabled={isLoading}
+            className="flex-1 px-4 py-3 bg-white/10 hover:bg-white/20 rounded-xl font-medium transition-colors disabled:opacity-50"
+          >
+            {cancelText}
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={isLoading}
+            className={`flex-1 px-4 py-3 ${styles.button} rounded-xl font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2`}
+          >
+            {isLoading ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                Chargement...
+              </>
+            ) : (
+              confirmText
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================
 // PAGE
 // ============================================
 
@@ -159,6 +263,17 @@ function BookingsContent() {
   const [bookingsState, setBookingsState] = useApiState<Booking[]>();
   const [filter, setFilter] = useState<'all' | 'upcoming' | 'past'>('all');
   const [statusFilter, setStatusFilter] = useState<ReservationStatus | 'all'>('all');
+  
+  // États pour les modals de confirmation
+  const [cancelModal, setCancelModal] = useState<{ isOpen: boolean; bookingId: string | null }>({
+    isOpen: false,
+    bookingId: null,
+  });
+  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; bookingId: string | null }>({
+    isOpen: false,
+    bookingId: null,
+  });
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
     const fetchBookings = async () => {
@@ -168,11 +283,39 @@ function BookingsContent() {
     fetchBookings();
   }, [setBookingsState]);
 
-  const handleCancel = async (id: string) => {
-    if (confirm('Êtes-vous sûr de vouloir annuler cette réservation ?')) {
-      await bookingsApi.cancel(id);
+  const handleCancelClick = (id: string) => {
+    setCancelModal({ isOpen: true, bookingId: id });
+  };
+
+  const handleCancelConfirm = async () => {
+    if (!cancelModal.bookingId) return;
+    
+    setIsProcessing(true);
+    try {
+      await bookingsApi.cancel(cancelModal.bookingId);
       const result = await bookingsApi.getAll();
       setBookingsState(result);
+    } finally {
+      setIsProcessing(false);
+      setCancelModal({ isOpen: false, bookingId: null });
+    }
+  };
+
+  const handleDeleteClick = (id: string) => {
+    setDeleteModal({ isOpen: true, bookingId: id });
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteModal.bookingId) return;
+    
+    setIsProcessing(true);
+    try {
+      await bookingsApi.delete(deleteModal.bookingId);
+      const result = await bookingsApi.getAll();
+      setBookingsState(result);
+    } finally {
+      setIsProcessing(false);
+      setDeleteModal({ isOpen: false, bookingId: null });
     }
   };
 
@@ -289,12 +432,39 @@ function BookingsContent() {
               <BookingCard 
                 key={booking.id} 
                 booking={booking} 
-                onCancel={handleCancel}
+                onCancel={handleCancelClick}
+                onDelete={handleDeleteClick}
               />
             ))}
           </div>
         )}
       </main>
+
+      {/* Modal de confirmation d'annulation */}
+      <ConfirmModal
+        isOpen={cancelModal.isOpen}
+        title="Annuler la réservation"
+        message="Êtes-vous sûr de vouloir annuler cette réservation ? Vous pourrez la supprimer définitivement ensuite."
+        confirmText="Oui, annuler"
+        cancelText="Non, garder"
+        variant="warning"
+        onConfirm={handleCancelConfirm}
+        onCancel={() => setCancelModal({ isOpen: false, bookingId: null })}
+        isLoading={isProcessing}
+      />
+
+      {/* Modal de confirmation de suppression */}
+      <ConfirmModal
+        isOpen={deleteModal.isOpen}
+        title="Supprimer définitivement"
+        message="Cette action est irréversible. La réservation sera définitivement supprimée de votre historique."
+        confirmText="Supprimer"
+        cancelText="Annuler"
+        variant="danger"
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setDeleteModal({ isOpen: false, bookingId: null })}
+        isLoading={isProcessing}
+      />
     </div>
   );
 }
