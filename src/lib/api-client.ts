@@ -138,19 +138,23 @@ interface SendEmailNotificationParams {
 
 async function sendEmailNotification(params: SendEmailNotificationParams): Promise<void> {
   try {
+    console.log(`[Email] Envoi notification ${params.type} pour réservation ${params.booking.id}`);
+    
     const response = await fetch('/api/email', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),
     });
 
+    const responseData = await response.json();
+    
     if (!response.ok) {
-      console.warn('Échec de l\'envoi de l\'email de notification:', await response.text());
+      console.warn('[Email] Échec de l\'envoi:', responseData);
     } else {
-      console.log(`Email de notification "${params.type}" envoyé avec succès`);
+      console.log(`[Email] "${params.type}" envoyé avec succès:`, responseData);
     }
   } catch (error) {
-    console.warn('Erreur lors de l\'envoi de l\'email de notification:', error);
+    console.warn('[Email] Erreur lors de l\'envoi de l\'email de notification:', error);
   }
 }
 
@@ -179,6 +183,7 @@ const QUERIES = {
             quantity
             consumable { id name price category }
           }
+          user { id email firstName lastName }
           createdAt
           updatedAt
         }
@@ -344,6 +349,7 @@ const MUTATIONS = {
           quantity
           consumable { id name price }
         }
+        user { id email firstName lastName }
         createdAt
       }
     }
@@ -367,6 +373,7 @@ const MUTATIONS = {
           quantity
           consumable { id name price }
         }
+        user { id email firstName lastName }
         updatedAt
       }
     }
@@ -391,6 +398,7 @@ const MUTATIONS = {
           quantity
           consumable { id name price category }
         }
+        user { id email firstName lastName }
         createdAt
         updatedAt
       }

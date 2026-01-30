@@ -26,10 +26,13 @@ const EmailRequestSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('[API Email] Requête reçue');
+    
     // Récupérer l'utilisateur connecté via Clerk
     const { userId } = await auth();
     
     if (!userId) {
+      console.log('[API Email] Non authentifié');
       return NextResponse.json(
         { success: false, error: 'Non authentifié' },
         { status: 401 }
@@ -37,13 +40,16 @@ export async function POST(request: NextRequest) {
     }
 
     const user = await currentUser();
+    console.log('[API Email] Utilisateur:', user?.primaryEmailAddress?.emailAddress);
     
     const body = await request.json();
+    console.log('[API Email] Body reçu:', JSON.stringify(body, null, 2));
     
     // Valider les données d'entrée
     const validationResult = EmailRequestSchema.safeParse(body);
     
     if (!validationResult.success) {
+      console.log('[API Email] Validation échouée:', validationResult.error.issues);
       return NextResponse.json(
         { 
           success: false, 
@@ -55,6 +61,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { type, booking } = validationResult.data;
+    console.log('[API Email] Type:', type, '- Réservation:', booking.id);
 
     // Récupérer l'email depuis Clerk (priorité) ou depuis le body
     const userEmail = user?.primaryEmailAddress?.emailAddress || validationResult.data.userEmail;
