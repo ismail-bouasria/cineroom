@@ -218,13 +218,13 @@ export type CreateBookingInput = z.infer<typeof CreateBookingInputSchema>;
 export const UpdateBookingInputSchema = z.object({
   date: z.string().optional(),
   time: z.string().optional(),
-  roomNumber: z.number().int().min(1).max(7).optional(),
+  roomNumber: z.number().int().min(1).max(7).optional().nullable(),
   formula: BookingFormulaEnum.optional(),
   consumables: z.array(z.object({
     consumableId: z.string(),
     quantity: z.number().int().positive()
   })).optional(),
-  specialRequests: z.string().optional(),
+  specialRequests: z.string().optional().nullable(),
   status: ReservationStatusEnum.optional()
 });
 
