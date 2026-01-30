@@ -50,8 +50,8 @@ export const FORMULAS: FormulaConfig[] = [
     description: "L'intimité parfaite pour deux",
     seats: 2,
     basePrice: 35,
-    icon: "❤️",
-    color: "from-pink-500 to-rose-600"
+    icon: "🎬",
+    color: "from-slate-700 to-slate-800"
   },
   {
     id: "cine-team",
@@ -59,8 +59,8 @@ export const FORMULAS: FormulaConfig[] = [
     description: "Entre amis ou en famille",
     seats: 4,
     basePrice: 60,
-    icon: "👥",
-    color: "from-violet-500 to-purple-600",
+    icon: "🍿",
+    color: "from-red-900 to-red-950",
     popular: true
   },
   {
@@ -69,8 +69,8 @@ export const FORMULAS: FormulaConfig[] = [
     description: "Pour les grandes occasions",
     seats: 8,
     basePrice: 100,
-    icon: "🎉",
-    color: "from-amber-500 to-orange-600"
+    icon: "🎥",
+    color: "from-zinc-700 to-zinc-800"
   }
 ];
 

@@ -3,8 +3,8 @@
 import { useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useUser } from '@clerk/nextjs';
-import { Calendar, Film, Clock, ArrowRight, Ticket, Plus, Star, Users } from 'lucide-react';
+import { useUser, SignOutButton } from '@clerk/nextjs';
+import { Calendar, Film, Clock, ArrowRight, Ticket, Plus, Star, Users, Home, LogOut, User } from 'lucide-react';
 import { Booking, FORMULAS } from '@/types';
 import { useApiState } from '@/lib/hooks';
 import { bookingsApi, isLoading, hasError, hasData } from '@/lib/api-client';
@@ -136,6 +136,54 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white">
+      {/* Navbar */}
+      <nav className="sticky top-0 z-50 bg-[#0a0a0a]/95 backdrop-blur-sm border-b border-white/10">
+        <div className="max-w-6xl mx-auto px-4 md:px-8 h-16 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-gradient-to-br from-red-600 to-red-800 rounded-lg flex items-center justify-center">
+              <Film className="w-5 h-5" />
+            </div>
+            <span className="text-lg font-black">
+              Cine<span className="text-red-500">Room</span>
+            </span>
+          </Link>
+
+          <div className="hidden md:flex items-center gap-6">
+            <Link href="/" className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors">
+              <Home className="w-4 h-4" />
+              Accueil
+            </Link>
+            <Link href="/catalogue" className="text-gray-400 hover:text-white transition-colors">
+              Catalogue
+            </Link>
+            <Link href="/bookings" className="text-gray-400 hover:text-white transition-colors">
+              Réservations
+            </Link>
+            <Link href="/profile" className="text-gray-400 hover:text-white transition-colors">
+              <User className="w-5 h-5" />
+            </Link>
+            <SignOutButton>
+              <button className="flex items-center gap-2 px-4 py-2 text-gray-400 hover:text-red-400 transition-colors">
+                <LogOut className="w-4 h-4" />
+                Déconnexion
+              </button>
+            </SignOutButton>
+          </div>
+
+          {/* Mobile menu */}
+          <div className="flex md:hidden items-center gap-3">
+            <Link href="/" className="p-2 text-gray-400 hover:text-white">
+              <Home className="w-5 h-5" />
+            </Link>
+            <SignOutButton>
+              <button className="p-2 text-gray-400 hover:text-red-400">
+                <LogOut className="w-5 h-5" />
+              </button>
+            </SignOutButton>
+          </div>
+        </div>
+      </nav>
+
       {/* Header */}
       <header className="bg-gradient-to-b from-red-950/30 to-transparent py-8 px-4 md:px-8">
         <div className="max-w-6xl mx-auto">
@@ -150,7 +198,7 @@ export default function DashboardPage() {
             </div>
             <Link
               href="/book"
-              className="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 rounded-full font-semibold transition-all hover:scale-105"
+              className="flex items-center justify-center gap-2 px-6 py-3 bg-red-600 hover:bg-red-700 rounded-xl font-semibold transition-colors"
             >
               <Plus className="w-5 h-5" />
               Nouvelle réservation
@@ -219,7 +267,7 @@ export default function DashboardPage() {
               </p>
               <Link
                 href="/book"
-                className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-red-500 to-orange-500 rounded-full font-medium"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-red-600 hover:bg-red-700 rounded-xl font-medium transition-colors"
               >
                 <Ticket className="w-5 h-5" />
                 Réserver maintenant
@@ -282,7 +330,7 @@ export default function DashboardPage() {
         )}
       </main>
 
-      {/* Navigation */}
+      {/* Navigation mobile */}
       <nav className="fixed bottom-0 left-0 right-0 bg-[#0a0a0a]/95 backdrop-blur-sm border-t border-white/10 py-4 px-4 md:hidden">
         <div className="flex justify-around">
           <Link href="/dashboard" className="flex flex-col items-center gap-1 text-red-400">
@@ -295,14 +343,17 @@ export default function DashboardPage() {
           </Link>
           <Link href="/bookings" className="flex flex-col items-center gap-1 text-gray-400 hover:text-white">
             <Ticket className="w-6 h-6" />
-            <span className="text-xs">Réservations</span>
+            <span className="text-xs">Mes séances</span>
           </Link>
           <Link href="/profile" className="flex flex-col items-center gap-1 text-gray-400 hover:text-white">
-            <Users className="w-6 h-6" />
+            <User className="w-6 h-6" />
             <span className="text-xs">Profil</span>
           </Link>
         </div>
       </nav>
+
+      {/* Espace pour la navbar mobile */}
+      <div className="h-20 md:hidden" />
     </div>
   );
 }

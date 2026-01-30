@@ -148,36 +148,36 @@ function FormulaSelection({
             key={formula.id}
             onClick={() => onSelect(formula)}
             className={`
-              relative overflow-hidden rounded-2xl p-6 text-left transition-all
+              relative overflow-hidden rounded-2xl p-6 text-left transition-all border
               ${selectedFormula?.id === formula.id
-                ? 'ring-2 ring-white scale-105 shadow-2xl'
-                : 'hover:scale-105'
+                ? 'ring-2 ring-red-500 border-red-500'
+                : 'border-white/10 hover:border-white/30'
               }
               bg-gradient-to-br ${formula.color}
             `}
           >
             {formula.popular && (
-              <div className="absolute top-4 right-4 px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-xs font-medium">
-                ⭐ Populaire
+              <div className="absolute top-4 right-4 px-3 py-1 bg-red-600/80 backdrop-blur-sm rounded-full text-xs font-medium">
+                ★ Populaire
               </div>
             )}
             
             {selectedFormula?.id === formula.id && (
-              <div className="absolute top-4 left-4 w-6 h-6 bg-white rounded-full flex items-center justify-center">
-                <Check size={14} className="text-black" />
+              <div className="absolute top-4 left-4 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
+                <Check size={14} className="text-white" />
               </div>
             )}
 
             <div className="text-4xl mb-4">{formula.icon}</div>
             <h3 className="text-2xl font-bold mb-2">{formula.name}</h3>
-            <p className="text-white/80 mb-4">{formula.description}</p>
+            <p className="text-white/70 mb-4">{formula.description}</p>
             
             <div className="flex items-baseline gap-2 mb-4">
               <span className="text-3xl font-bold">{formula.basePrice}€</span>
-              <span className="text-white/60">/ séance</span>
+              <span className="text-white/50">/ séance</span>
             </div>
             
-            <div className="flex items-center gap-2 text-white/80">
+            <div className="flex items-center gap-2 text-white/70">
               <Users size={18} />
               <span>{formula.seats} places</span>
             </div>
@@ -555,7 +555,7 @@ function BookingContent() {
             <button
               onClick={goToPrevious}
               disabled={currentStepIndex === 0}
-              className="flex items-center gap-2 px-6 py-3 bg-white/10 hover:bg-white/20 rounded-full font-medium transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              className="flex items-center gap-2 px-6 py-3 bg-white/10 hover:bg-white/20 rounded-xl font-medium transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
             >
               <ArrowLeft size={20} />
               Précédent
@@ -564,7 +564,7 @@ function BookingContent() {
             <button
               onClick={goToNext}
               disabled={!canGoNext()}
-              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 rounded-full font-medium transition-all hover:scale-105 disabled:opacity-30 disabled:cursor-not-allowed"
+              className="flex items-center gap-2 px-6 py-3 bg-red-600 hover:bg-red-700 rounded-xl font-medium transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
             >
               Suivant
               <ArrowRight size={20} />

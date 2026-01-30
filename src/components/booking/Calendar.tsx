@@ -218,7 +218,7 @@ export function Calendar({
               className={`
                 relative aspect-square flex items-center justify-center rounded-lg text-sm font-medium transition-all
                 ${dayInfo.isSelected
-                  ? 'bg-gradient-to-r from-red-500 to-orange-500 text-white scale-110 shadow-lg shadow-red-500/30'
+                  ? 'bg-red-600 text-white ring-2 ring-red-400'
                   : dayInfo.isToday
                     ? 'bg-white/20 text-white'
                     : dayInfo.isCurrentMonth
@@ -250,26 +250,28 @@ export function Calendar({
               Aucun créneau disponible pour cette date
             </p>
           ) : (
-            <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-7 gap-2">
-              {availableTimeSlots.map(({ time, available }) => (
-                <button
-                  key={time}
-                  onClick={() => available && onTimeSelect(time)}
-                  disabled={!available}
-                  className={`
-                    py-3 px-2 rounded-lg text-sm font-medium transition-all
-                    ${selectedTime === time
-                      ? 'bg-gradient-to-r from-red-500 to-orange-500 text-white shadow-lg shadow-red-500/30'
-                      : available
-                        ? 'bg-white/10 hover:bg-white/20 text-white'
-                        : 'bg-white/5 text-gray-600 cursor-not-allowed line-through'
-                    }
-                  `}
-                  aria-label={`Sélectionner ${time}`}
-                >
-                  {time}
-                </button>
-              ))}
+            <div className="max-h-48 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
+              <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-2">
+                {availableTimeSlots.map(({ time, available }) => (
+                  <button
+                    key={time}
+                    onClick={() => available && onTimeSelect(time)}
+                    disabled={!available}
+                    className={`
+                      py-3 px-2 rounded-lg text-sm font-medium transition-all
+                      ${selectedTime === time
+                        ? 'bg-red-600 text-white ring-2 ring-red-400'
+                        : available
+                          ? 'bg-white/10 hover:bg-white/20 text-white border border-white/10'
+                          : 'bg-white/5 text-gray-600 cursor-not-allowed line-through'
+                      }
+                    `}
+                    aria-label={`Sélectionner ${time}`}
+                  >
+                    {time}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
         </div>
@@ -324,7 +326,7 @@ export function MiniCalendar({
           className={`
             flex-shrink-0 flex flex-col items-center justify-center w-16 h-20 rounded-xl transition-all
             ${selectedDate === dateString
-              ? 'bg-gradient-to-b from-red-500 to-orange-500 text-white scale-105 shadow-lg shadow-red-500/30'
+              ? 'bg-red-600 text-white ring-2 ring-red-400'
               : 'bg-white/10 hover:bg-white/20 text-white'
             }
           `}

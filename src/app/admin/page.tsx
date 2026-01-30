@@ -190,7 +190,7 @@ export default function AdminDashboardPage() {
           <button
             onClick={() => setActiveTab('overview')}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${
-              activeTab === 'overview' ? 'bg-gradient-to-r from-red-500 to-orange-500' : 'hover:bg-white/10'
+              activeTab === 'overview' ? 'bg-red-600' : 'hover:bg-white/10'
             }`}
           >
             <LayoutDashboard className="w-5 h-5" />
@@ -199,12 +199,19 @@ export default function AdminDashboardPage() {
           <button
             onClick={() => setActiveTab('bookings')}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${
-              activeTab === 'bookings' ? 'bg-gradient-to-r from-red-500 to-orange-500' : 'hover:bg-white/10'
+              activeTab === 'bookings' ? 'bg-red-600' : 'hover:bg-white/10'
             }`}
           >
             <Ticket className="w-5 h-5" />
             Réservations
           </button>
+          <Link
+            href="/admin/resources"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/10 transition-colors"
+          >
+            <Users className="w-5 h-5" />
+            Ressources
+          </Link>
           <Link
             href="/catalogue"
             className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/10 transition-colors"
