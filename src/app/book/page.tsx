@@ -204,7 +204,7 @@ function DateTimeSelection({
   onTimeSelect: (time: string) => void;
 }) {
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-24">
       <div>
         <h2 className="text-2xl font-bold mb-2">Choisissez la date et l&apos;heure</h2>
         <p className="text-gray-400">Sélectionnez le créneau qui vous convient</p>
