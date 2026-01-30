@@ -240,7 +240,7 @@ export function Calendar({
 
       {/* Créneaux horaires */}
       {selectedDate && (
-        <div className="mt-8">
+        <div className="mt-8 pb-4">
           <h4 className="text-lg font-semibold mb-4">
             Choisissez un créneau
           </h4>
@@ -250,28 +250,26 @@ export function Calendar({
               Aucun créneau disponible pour cette date
             </p>
           ) : (
-            <div className="max-h-48 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
-              <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-2">
-                {availableTimeSlots.map(({ time, available }) => (
-                  <button
-                    key={time}
-                    onClick={() => available && onTimeSelect(time)}
-                    disabled={!available}
-                    className={`
-                      py-3 px-2 rounded-lg text-sm font-medium transition-all
-                      ${selectedTime === time
-                        ? 'bg-red-600 text-white ring-2 ring-red-400'
-                        : available
-                          ? 'bg-white/10 hover:bg-white/20 text-white border border-white/10'
-                          : 'bg-white/5 text-gray-600 cursor-not-allowed line-through'
-                      }
-                    `}
-                    aria-label={`Sélectionner ${time}`}
-                  >
-                    {time}
-                  </button>
-                ))}
-              </div>
+            <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-2">
+              {availableTimeSlots.map(({ time, available }) => (
+                <button
+                  key={time}
+                  onClick={() => available && onTimeSelect(time)}
+                  disabled={!available}
+                  className={`
+                    py-3 px-2 rounded-lg text-sm font-medium transition-all
+                    ${selectedTime === time
+                      ? 'bg-red-600 text-white ring-2 ring-red-400'
+                      : available
+                        ? 'bg-white/10 hover:bg-white/20 text-white border border-white/10'
+                        : 'bg-white/5 text-gray-600 cursor-not-allowed line-through'
+                    }
+                  `}
+                  aria-label={`Sélectionner ${time}`}
+                >
+                  {time}
+                </button>
+              ))}
             </div>
           )}
         </div>
