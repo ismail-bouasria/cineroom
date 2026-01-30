@@ -1,0 +1,106 @@
+// ============================================
+// PRISMA SCHEMA - CineRoom
+// Base de données SQLite pour la gestion des réservations
+// ============================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// MODÈLE USER
+// Synchronisé avec Clerk pour l'authentification
+// ============================================
+
+model User {
+  id        String   @id @default(cuid())
+  clerkId   String   @unique // ID Clerk de l'utilisateur
+  email     String   @unique
+  firstName String?
+  lastName  String?
+  role      String   @default("user") // "user" | "admin"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  bookings Booking[]
+
+  @@index([clerkId])
+  @@index([email])
+}
+
+// ============================================
+// MODÈLE BOOKING (Réservation)
+// ============================================
+
+model Booking {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Informations film (depuis TMDB)
+  movieId         Int
+  movieTitle      String
+  moviePoster     String?
+  
+  // Détails réservation
+  formula         String   // "cine-duo" | "cine-team" | "cine-groupe"
+  date            String   // Format YYYY-MM-DD
+  time            String   // Format HH:mm
+  totalPrice      Float
+  status          String   @default("active") // "active" | "modifiee" | "annulee" | "passee"
+  specialRequests String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  consumables BookingConsumable[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([date])
+  @@index([movieId])
+}
+
+// ============================================
+// MODÈLE CONSUMABLE (Consommables)
+// ============================================
+
+model Consumable {
+  id          String  @id @default(cuid())
+  name        String
+  description String?
+  price       Float
+  category    String  // "popcorn" | "boissons" | "snacks" | "menus"
+  imageUrl    String?
+  isAvailable Boolean @default(true)
+
+  // Relations
+  bookingConsumables BookingConsumable[]
+
+  @@index([category])
+}
+
+// ============================================
+// TABLE DE LIAISON BOOKING - CONSUMABLE
+// ============================================
+
+model BookingConsumable {
+  id           String     @id @default(cuid())
+  bookingId    String
+  consumableId String
+  quantity     Int
+  
+  booking      Booking    @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  consumable   Consumable @relation(fields: [consumableId], references: [id])
+
+  @@unique([bookingId, consumableId])
+  @@index([bookingId])
+  @@index([consumableId])
+}
