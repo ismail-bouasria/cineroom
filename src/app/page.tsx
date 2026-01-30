@@ -3,7 +3,7 @@
 import { SignInButton, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
 import Link from "next/link";
 import { useState, useEffect } from "react";
-import { Play, Star, Clock, ChevronLeft, ChevronRight, Ticket, Sparkles, Film, Users, Zap, Rocket, Theater, Smile, Crown, Popcorn, Calendar, Volume2, Heart } from "lucide-react";
+import { Play, Star, Clock, ChevronLeft, ChevronRight, Ticket, Sparkles, Film, Users, Zap, Rocket, Theater, Smile, Crown, Popcorn, Calendar, Volume2, Heart, LayoutDashboard } from "lucide-react";
 import { TMDBMovie, FORMULAS, TMDB_GENRES } from "@/types";
 import { getImageUrl, getBackdropUrl, MOCK_MOVIES } from "@/lib/tmdb";
 import { MovieImage } from "@/components/common/MovieImage";
@@ -276,6 +276,13 @@ export default function LandingPage() {
               </SignInButton>
             </SignedOut>
             <SignedIn>
+              <Link
+                href="/dashboard"
+                className="hidden md:flex items-center gap-2 px-4 py-2.5 bg-white/10 hover:bg-white/20 rounded-xl font-medium transition-colors"
+              >
+                <LayoutDashboard size={18} />
+                Dashboard
+              </Link>
               <Link
                 href="/book"
                 className="hidden md:flex items-center gap-2 px-6 py-2.5 bg-red-600 hover:bg-red-700 rounded-xl font-semibold transition-colors"

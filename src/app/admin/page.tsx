@@ -3,9 +3,10 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { 
   LayoutDashboard, Ticket, Film, Users, TrendingUp, 
-  Calendar, ArrowUp, ArrowDown, Eye, Check, X, Clock 
+  Calendar, ArrowUp, ArrowDown, Eye, Check, X, Clock, ShieldX 
 } from 'lucide-react';
 import { Booking, FORMULAS, ReservationStatus } from '@/types';
 import { useApiState } from '@/lib/hooks';
@@ -141,21 +142,77 @@ const BookingRow = ({
 // ============================================
 
 export default function AdminDashboardPage() {
+  const router = useRouter();
   const [statsState, setStatsState] = useApiState<DashboardStats>();
   const [bookingsState, setBookingsState] = useApiState<Booking[]>();
   const [activeTab, setActiveTab] = useState<'overview' | 'bookings'>('overview');
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
-      const [stats, bookings] = await Promise.all([
-        statsApi.getDashboard(),
-        adminApi.getAllBookings()
-      ]);
-      setStatsState(stats);
-      setBookingsState(bookings);
+      try {
+        // Tenter de récupérer les stats admin - si ça échoue, l'utilisateur n'est pas admin
+        const [stats, bookings] = await Promise.all([
+          statsApi.getDashboard(),
+          adminApi.getAllBookings()
+        ]);
+        
+        // Si on arrive ici sans erreur, l'utilisateur est admin
+        if (hasError(stats) || hasError(bookings)) {
+          setIsAdmin(false);
+          return;
+        }
+        
+        setIsAdmin(true);
+        setStatsState(stats);
+        setBookingsState(bookings);
+      } catch {
+        setIsAdmin(false);
+      }
     };
     fetchData();
   }, [setStatsState, setBookingsState]);
+
+  // Afficher un écran de chargement pendant la vérification
+  if (isAdmin === null) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+        <div className="animate-spin text-4xl">🎬</div>
+      </div>
+    );
+  }
+
+  // Afficher la page d'erreur si l'utilisateur n'est pas admin
+  if (isAdmin === false) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center px-4">
+        <div className="text-center max-w-md">
+          <div className="w-24 h-24 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+            <ShieldX className="w-12 h-12 text-red-400" />
+          </div>
+          <h1 className="text-4xl font-black text-white mb-4">Accès refusé</h1>
+          <p className="text-gray-400 mb-8">
+            Vous n&apos;avez pas les droits administrateur pour accéder à cette page.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link
+              href="/dashboard"
+              className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-red-600 hover:bg-red-700 rounded-xl font-medium text-white transition-colors"
+            >
+              <LayoutDashboard className="w-5 h-5" />
+              Mon Dashboard
+            </Link>
+            <Link
+              href="/"
+              className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-white/10 hover:bg-white/20 rounded-xl font-medium text-white transition-colors"
+            >
+              Retour à l&apos;accueil
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const handleConfirm = async (id: string) => {
     await adminApi.updateBookingStatus(id, 'active');
