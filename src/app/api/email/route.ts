@@ -67,9 +67,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Vérifier que l'API key Resend est configurée
-    if (!process.env.RESEND_API_KEY) {
-      console.warn('RESEND_API_KEY non configurée - email non envoyé');
+    // Vérifier que Gmail est configuré
+    if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+      console.warn('Configuration Gmail manquante - email non envoyé');
       return NextResponse.json(
         { 
           success: false, 

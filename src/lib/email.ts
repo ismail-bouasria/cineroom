@@ -1,14 +1,20 @@
-import { Resend } from 'resend';
+import nodemailer from 'nodemailer';
 import type { Booking } from '@/types';
 import { FORMULAS, CONSUMABLES } from '@/types';
 
 // ============================================
-// CONFIGURATION
+// CONFIGURATION NODEMAILER (Gmail SMTP - Gratuit)
 // ============================================
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.GMAIL_USER,
+    pass: process.env.GMAIL_APP_PASSWORD, // Mot de passe d'application Gmail
+  },
+});
 
-const FROM_EMAIL = process.env.EMAIL_FROM || 'CineRoom <noreply@cineroom.fr>';
+const FROM_EMAIL = process.env.GMAIL_USER || 'noreply@cineroom.fr';
 const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || 'support@cineroom.fr';
 
 // ============================================
@@ -360,6 +366,15 @@ export async function sendBookingEmail(
   data: BookingEmailData
 ): Promise<SendEmailResult> {
   try {
+    // Vérifier la configuration Gmail
+    if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+      console.warn('Configuration Gmail manquante - email non envoyé');
+      return {
+        success: false,
+        error: 'Service email non configuré',
+      };
+    }
+
     let emailContent: { subject: string; html: string };
     
     switch (type) {
@@ -379,24 +394,19 @@ export async function sendBookingEmail(
         throw new Error(`Type de notification non supporté: ${type}`);
     }
 
-    const { data: result, error } = await resend.emails.send({
-      from: FROM_EMAIL,
+    // Envoyer l'email avec Nodemailer
+    const info = await transporter.sendMail({
+      from: `CineRoom <${FROM_EMAIL}>`,
       to: data.userEmail,
       subject: emailContent.subject,
       html: emailContent.html,
     });
 
-    if (error) {
-      console.error('Erreur Resend:', error);
-      return {
-        success: false,
-        error: error.message,
-      };
-    }
+    console.log('Email envoyé:', info.messageId);
 
     return {
       success: true,
-      messageId: result?.id,
+      messageId: info.messageId,
     };
   } catch (error) {
     console.error('Erreur lors de l\'envoi de l\'email:', error);
